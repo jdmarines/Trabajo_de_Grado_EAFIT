@@ -217,11 +217,12 @@ def recommend_for(
     red_champs: List[Union[int, str]],
     side: str = "blue",
     tier: str = "lowtier",
-    top_k: int = 5
+    top_k: int = 5,
+    bans: List[Union[int, str]] = None  # ✨ NUEVO: Parámetro de bans
 ) -> List[Recommendation]:
     """
     Evalúa el catálogo total disponible frente al estado actual del Draft.
-    Devuelve una lista ordenada por Score táctico o Win Rate base si está vacío.
+    Excluye tanto los campeones seleccionados como los baneados.
     """
     tier_key = tier.lower()
     if tier_key not in RES.models:
@@ -230,16 +231,20 @@ def recommend_for(
     # 1. Inicializar y normalizar estados del Draft
     blue_ids = [normalize_champion(c) for c in blue_champs]
     red_ids = [normalize_champion(c) for c in red_champs]
-    used_ids = set(blue_ids + red_ids)
+    ban_ids = [normalize_champion(c) for c in bans] if bans else []
+    
+    # ✨ SOLUCIÓN: Agregamos los bans al set de IDs usados para que el motor los ignore
+    used_ids = set(blue_ids + red_ids + ban_ids)
 
     # =========================================================================
-    # ✨ FUNCIÓN 1: Estado Inicial Vacío (Top 5 Win Rate del Tier Seleccionado)
+    # Estado Inicial Vacío (Top 5 Win Rate del Tier Seleccionado)
     # =========================================================================
     if len(blue_ids) == 0 and len(red_ids) == 0:
         wr_col = f"win_rate_{tier_key}" if f"win_rate_{tier_key}" in RES.champs_df.columns else "win_rate_role"
         
-        # Obtenemos los mejores 5 campeones ordenados por el win rate de este Elo
-        top_champs = RES.champs_df.sort_values(by=wr_col, ascending=False).head(top_k)
+        # Filtramos el catálogo para no sugerir campeones que ya fueron baneados en el arranque
+        available_champs = RES.champs_df[~RES.champs_df["champ_id"].isin(used_ids)]
+        top_champs = available_champs.sort_values(by=wr_col, ascending=False).head(top_k)
         
         return [
             Recommendation(
@@ -254,6 +259,9 @@ def recommend_for(
         ]
     # =========================================================================
 
+    # Identificar el universo de campeones elegibles en el parche
+    candidate_ids = [cid for cid in RES.champs_df["champ_id"].astype(int) if cid not in used_ids]
+    
     # Identificar el universo de campeones elegibles en el parche
     candidate_ids = [cid for cid in RES.champs_df["champ_id"].astype(int) if cid not in used_ids]
 
