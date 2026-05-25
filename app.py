@@ -113,27 +113,42 @@ def coach_summary(m: dict) -> str:
 def render_draft_interface(tier_key):
     """
     Renderiza el simulador de draft para un tier específico ('apex' o 'lowtier').
+    Filtra los campeones dinámicamente para impedir duplicados entre ambos equipos.
     """
     # Catálogo unificado obtenido del dataframe cargado en el backend
     champ_list = sorted(RES.champs_df["name"].tolist())
+
+    # 🛠️ FUNCIÓN AUXILIAR: Filtra campeones ya seleccionados en otros selectboxes
+    def get_available_options(current_key):
+        all_keys = [f"b{i}_{tier_key}" for i in range(1, 6)] + [f"r{i}_{tier_key}" for i in range(1, 6)]
+        selected_elsewhere = set()
+        
+        for k in all_keys:
+            if k != current_key:
+                val = st.session_state.get(k, "(vacío)")
+                if val != "(vacío)":
+                    selected_elsewhere.add(val)
+                    
+        # Retorna la lista limpia excluyendo lo elegido en otros lados
+        return ["(vacío)"] + [c for c in champ_list if c not in selected_elsewhere]
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("🔵 Equipo BLUE")
-        b1 = st.selectbox("Blue 1", ["(vacío)"] + champ_list, key=f"b1_{tier_key}")
-        b2 = st.selectbox("Blue 2", ["(vacío)"] + champ_list, key=f"b2_{tier_key}")
-        b3 = st.selectbox("Blue 3", ["(vacío)"] + champ_list, key=f"b3_{tier_key}")
-        b4 = st.selectbox("Blue 4", ["(vacío)"] + champ_list, key=f"b4_{tier_key}")
-        b5 = st.selectbox("Blue 5", ["(vacío)"] + champ_list, key=f"b5_{tier_key}")
+        b1 = st.selectbox("Blue 1", get_available_options(f"b1_{tier_key}"), key=f"b1_{tier_key}")
+        b2 = st.selectbox("Blue 2", get_available_options(f"b2_{tier_key}"), key=f"b2_{tier_key}")
+        b3 = st.selectbox("Blue 3", get_available_options(f"b3_{tier_key}"), key=f"b3_{tier_key}")
+        b4 = st.selectbox("Blue 4", get_available_options(f"b4_{tier_key}"), key=f"b4_{tier_key}")
+        b5 = st.selectbox("Blue 5", get_available_options(f"b5_{tier_key}"), key=f"b5_{tier_key}")
 
     with col2:
         st.subheader("🔴 Equipo RED")
-        r1 = st.selectbox("Red 1", ["(vacío)"] + champ_list, key=f"r1_{tier_key}")
-        r2 = st.selectbox("Red 2", ["(vacío)"] + champ_list, key=f"r2_{tier_key}")
-        r3 = st.selectbox("Red 3", ["(vacío)"] + champ_list, key=f"r3_{tier_key}")
-        r4 = st.selectbox("Red 4", ["(vacío)"] + champ_list, key=f"r4_{tier_key}")
-        r5 = st.selectbox("Red 5", ["(vacío)"] + champ_list, key=f"r5_{tier_key}")
+        r1 = st.selectbox("Red 1", get_available_options(f"r1_{tier_key}"), key=f"r1_{tier_key}")
+        r2 = st.selectbox("Red 2", get_available_options(f"r2_{tier_key}"), key=f"r2_{tier_key}")
+        r3 = st.selectbox("Red 3", get_available_options(f"r3_{tier_key}"), key=f"r3_{tier_key}")
+        r4 = st.selectbox("Red 4", get_available_options(f"r4_{tier_key}"), key=f"r4_{tier_key}")
+        r5 = st.selectbox("Red 5", get_available_options(f"r5_{tier_key}"), key=f"r5_{tier_key}")
 
     blue_sel = normalize_selection([b1, b2, b3, b4, b5])
     red_sel  = normalize_selection([r1, r2, r3, r4, r5])
@@ -143,130 +158,120 @@ def render_draft_interface(tier_key):
     st.markdown(
         """
         - Para **evaluar un draft completo**, selecciona hasta 5 campeones por lado y pulsa **Calcular probabilidad**.  
-        - Para **ver recomendaciones top-5**, usa **máximo 4 campeones por lado** (simulando un draft en progreso).
+        - Para **ver recomendaciones**, puedes dejar el draft vacío o avanzar de forma secuencial.
         """
     )
 
     if st.button("🔍 Calcular probabilidad y recomendaciones", key=f"btn_{tier_key}"):
-        if len(blue_sel) == 0 or len(red_sel) == 0:
-            st.error("Debes seleccionar al menos un campeón en cada equipo.")
-        else:
-            try:
-                # ==========================
-                # 1) PROBABILIDAD DE VICTORIA
-                # ==========================
-                # Transformamos los nombres a IDs de campeones y rellenamos con -1 como pide el modelo
-                blue_ids = [normalize_champion(c) for c in blue_sel]
-                red_ids = [normalize_champion(c) for c in red_sel]
-                while len(blue_ids) < 5: blue_ids.append(-1)
-                while len(red_ids) < 5: red_ids.append(-1)
+        # Modificamos las condiciones de validación para permitir el estado vacío (Ambos en 0)
+        if len(blue_sel) == 0 and len(red_sel) == 0:
+            # Caso permitido: Estado inicial para recomendaciones por Win Rate base
+            pass
+        elif len(blue_sel) == 0 or len(red_sel) == 0:
+            st.error("Durante el progreso del draft, debes tener al menos un campeón en cada bando.")
+            st.stop()
 
-                # Inferencia con el modelo correspondiente del tier asignado
-                df_feats = build_features_for_draft(blue_ids, red_ids, tier=tier_key)
-                p_blue = predict_blue_win_prob(df_feats, tier=tier_key)
-                p_red = 1.0 - p_blue
-
-                st.markdown("## 📊 Resultado global del draft")
-
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.metric("Probabilidad de victoria BLUE", f"{p_blue*100:.1f}%")
-                with c2:
-                    st.metric("Probabilidad de victoria RED", f"{p_red*100:.1f}%")
-
-                st.progress(p_blue)
-
-                # ==========================
-                # 1.1 PANEL TÁCTICO DE LA CAPA GOLD
-                # ==========================
-                # ==========================
-                # 1.1 PANEL TÁCTICO DE LA CAPA GOLD
-                # ==========================
-                st.markdown("### ⚙️ Resumen dimensional de la composición (Ventaja Relativa %)")
-                
-                gold_metrics = calculate_gold_deltas(blue_sel, red_sel)
-
-                # Función auxiliar para dar formato limpio (+15.4% / -8.2%)
-                def fmt(val):
-                    return f"+{val:.1f}%" if val > 0 else f"{val:.1f}%"
-
-                colA, colB, colC = st.columns(3)
-                with colA:
-                    st.metric("Δ Control de Masas (CC)", fmt(gold_metrics['cc']))
-                    st.metric("Δ Iniciación (Engage)", fmt(gold_metrics['engage']))
-                    st.metric("Δ Hostigamiento (Poke)", fmt(gold_metrics['poke']))
-
-                with colB:
-                    st.metric("Δ Robustez (Durability)", fmt(gold_metrics['durability']))
-                    st.metric("Δ Espaciado (Kiting)", fmt(gold_metrics['kiting']))
-                    st.metric("Δ Utilidad / Mitigación", fmt(gold_metrics['utility']))
-
-                with colC:
-                    st.metric("Δ Presión Física (Phys Dmg)", fmt(gold_metrics['phys_dmg']))
-                    st.metric("Δ Presión Mágica (Mag Dmg)", fmt(gold_metrics['mag_dmg']))
-                    st.metric("Δ Daño Sostenido (DPS)", fmt(gold_metrics['dps']))
-
-                # ==========================
-                # 1.2 COMENTARIO TIPO COACH
-                # ==========================
-                resumen = coach_summary(gold_metrics)
-                st.markdown(f"**Análisis del Coach:** {resumen}")
-
-            except Exception as e:
-                st.error(f"Error procesando la inferencia de la composición: {e}")
-
-# ==========================
-            # 2) RECOMENDACIONES TOP-5
+        try:
             # ==========================
-            st.markdown("## 🧠 Recomendaciones de siguiente pick (Top-5)")
+            # 1) PROBABILIDAD DE VICTORIA
+            # ==========================
+            blue_ids = [normalize_champion(c) for c in blue_sel]
+            red_ids = [normalize_champion(c) for c in red_sel]
+            while len(blue_ids) < 5: blue_ids.append(-1)
+            while len(red_ids) < 5: red_ids.append(-1)
 
-            # Solo asumimos que el draft cerró por completo si ambos lados están llenos
-            if len(blue_sel) == 5 and len(red_sel) == 5:
-                st.success("✨ ¡Draft finalizado! Ambos equipos han completado sus selecciones.")
-            else:
-                col_blue, col_red = st.columns(2)
+            df_feats = build_features_for_draft(blue_ids, red_ids, tier=tier_key)
+            p_blue = predict_blue_win_prob(df_feats, tier=tier_key)
+            p_red = 1.0 - p_blue
 
-                # 🔵 Recomendaciones para BLUE
-                with col_blue:
-                    st.subheader("🔵 Sugerencias para BLUE")
-                    if len(blue_sel) == 5:
-                        st.info("La composición de BLUE ya cuenta con sus 5 campeones.")
-                    else:
-                        try:
-                            recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key)
-                            if not recs_blue:
-                                st.info("No hay candidatos viables disponibles.")
-                            else:
-                                for r in recs_blue:
-                                    st.markdown(
-                                        f"**{r.champ_name}** \n"
-                                        f"P(Blue Win): **{r.prob_blue_win*100:.1f}%** | Score Táctico: *{r.score:.3f}* \n"
-                                        f"_{r.explanation}_"
-                                    )
-                                    st.markdown("---")
-                        except Exception as e:
-                            st.error(f"Error calculando recomendaciones para BLUE: {e}")
+            st.markdown("## 📊 Resultado global del draft")
 
-                # 🔴 Recomendaciones para RED
-                with col_red:
-                    st.subheader("🔴 Sugerencias para RED")
-                    if len(red_sel) == 5:
-                        st.info("La composición de RED ya cuenta con sus 5 campeones.")
-                    else:
-                        try:
-                            recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key)
-                            if not recs_red:
-                                st.info("No hay candidatos viables disponibles.")
-                            else:
-                                for r in recs_red:
-                                    st.markdown(
-                                        f"**{r.champ_name}** \n"
-                                        f"P(Red Win): **{r.prob_red_win*100:.1f}%** | Score Táctico: *{r.score:.3f}* \n"
-                                        f"_{r.explanation}_"
-                                    )
-                                    st.markdown("---")
-                        except Exception as e:
-                            st.error(f"Error calculando recomendaciones para RED: {e}")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.metric("Probabilidad de victoria BLUE", f"{p_blue*100:.1f}%")
+            with c2:
+                st.metric("Probabilidad de victoria RED", f"{p_red*100:.1f}%")
+
+            st.progress(p_blue)
+
+            # ==========================
+            # 1.1 PANEL TÁCTICO DE LA CAPA GOLD
+            # ==========================
+            st.markdown("### ⚙️ Resumen dimensional de la composición (Ventaja Relativa %)")
+            gold_metrics = calculate_gold_deltas(blue_sel, red_sel)
+
+            def fmt(val):
+                return f"+{val:.1f}%" if val > 0 else f"{val:.1f}%"
+
+            colA, colB, colC = st.columns(3)
+            with colA:
+                st.metric("Δ Control de Masas (CC)", fmt(gold_metrics['cc']))
+                st.metric("Δ Iniciación (Engage)", fmt(gold_metrics['engage']))
+                st.metric("Δ Hostigamiento (Poke)", fmt(gold_metrics['poke']))
+            with colB:
+                st.metric("Δ Robustez (Durability)", fmt(gold_metrics['durability']))
+                st.metric("Δ Espaciado (Kiting)", fmt(gold_metrics['kiting']))
+                st.metric("Δ Utilidad / Mitigación", fmt(gold_metrics['utility']))
+            with colC:
+                st.metric("Δ Presión Física (Phys Dmg)", fmt(gold_metrics['phys_dmg']))
+                st.metric("Δ Presión Mágica (Mag Dmg)", fmt(gold_metrics['mag_dmg']))
+                st.metric("Δ Daño Sostenido (DPS)", fmt(gold_metrics['dps']))
+
+            resumen = coach_summary(gold_metrics)
+            st.markdown(f"**Análisis del Coach:** {resumen}")
+
+        except Exception as e:
+            st.error(f"Error procesando la inferencia de la composición: {e}")
+
+        # ==========================
+        # 2) RECOMENDACIONES TOP-5
+        # ==========================
+        st.markdown("## 🧠 Recomendaciones de siguiente pick (Top-5)")
+
+        if len(blue_sel) == 5 and len(red_sel) == 5:
+            st.success("✨ ¡Draft finalizado! Ambos equipos han completado sus selecciones.")
+        else:
+            col_blue, col_red = st.columns(2)
+
+            with col_blue:
+                st.subheader("🔵 Sugerencias para BLUE")
+                if len(blue_sel) == 5:
+                    st.info("La composición de BLUE ya cuenta con sus 5 campeones.")
+                else:
+                    try:
+                        recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key)
+                        if not recs_blue:
+                            st.info("No hay candidatos viables disponibles.")
+                        else:
+                            for r in recs_blue:
+                                st.markdown(
+                                    f"**{r.champ_name}** \n"
+                                    f"P(Blue Win): **{r.prob_blue_win*100:.1f}%** | Score: *{r.score:.3f}* \n"
+                                    f"_{r.explanation}_"
+                                )
+                                st.markdown("---")
+                    except Exception as e:
+                        st.error(f"Error calculando recomendaciones para BLUE: {e}")
+
+            with col_red:
+                st.subheader("🔴 Sugerencias para RED")
+                if len(red_sel) == 5:
+                    st.info("La composición de RED ya cuenta con sus 5 campeones.")
+                else:
+                    try:
+                        recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key)
+                        if not recs_red:
+                            st.info("No hay candidatos viables disponibles.")
+                        else:
+                            for r in recs_red:
+                                st.markdown(
+                                    f"**{r.champ_name}** \n"
+                                    f"P(Red Win): **{r.prob_red_win*100:.1f}%** | Score: *{r.score:.3f}* \n"
+                                    f"_{r.explanation}_"
+                                )
+                                st.markdown("---")
+                    except Exception as e:
+                        st.error(f"Error calculando recomendaciones para RED: {e}")
 
 
 # =====================================
