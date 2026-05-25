@@ -36,8 +36,8 @@ def normalize_selection(selection_list):
 
 def calculate_gold_deltas(blue_sel, red_sel):
     """
-    Calcula de forma exacta los diferenciales de la Capa Gold de 9 dimensiones
-    para el panel visual de la UI, independiente de la etapa del modelo.
+    Calcula los diferenciales de la Capa Gold expresados en 
+    porcentaje de ventaja relativa (-100% a +100%).
     """
     blue_ids = [normalize_champion(c) for c in blue_sel]
     red_ids = [normalize_champion(c) for c in red_sel]
@@ -46,59 +46,62 @@ def calculate_gold_deltas(blue_sel, red_sel):
     b_v = np.sum([RES.champ_vectors.get(c, np.zeros(9)) for c in blue_ids], axis=0)
     r_v = np.sum([RES.champ_vectors.get(c, np.zeros(9)) for c in red_ids], axis=0)
     
-    deltas = b_v - r_v
+    # Calculamos la base total de la mesa para cada métrica
+    total_v = b_v + r_v
+    
+    # Evitamos la división por cero: si el total es 0, la ventaja es 0.0%
+    delta_pct = np.where(total_v > 0, ((b_v - r_v) / total_v) * 100, 0.0)
     
     return {
-        "phys_dmg": deltas[0],
-        "mag_dmg": deltas[1],
-        "dps": deltas[2],
-        "durability": deltas[3],
-        "cc": deltas[4],
-        "poke": deltas[5],
-        "engage": deltas[6],
-        "utility": deltas[7],
-        "kiting": deltas[8]
+        "phys_dmg": delta_pct[0],
+        "mag_dmg": delta_pct[1],
+        "dps": delta_pct[2],
+        "durability": delta_pct[3],
+        "cc": delta_pct[4],
+        "poke": delta_pct[5],
+        "engage": delta_pct[6],
+        "utility": delta_pct[7],
+        "kiting": delta_pct[8]
     }
 
 def coach_summary(m: dict) -> str:
     """
-    Genera un diagnóstico estratégico basado en las 9 dimensiones Gold
-    interpretado siempre a favor de las ventajas/desventajas de BLUE.
+    Genera un diagnóstico estratégico basado en las ventajas porcentuales.
     """
     lines = []
 
     # Control de Masas (CC)
-    if m["cc"] > 1.0:
-        lines.append("BLUE tiene **más CC total**, ideal para asegurar cazadas y controlar peleas grupales.")
-    elif m["cc"] < -1.0:
-        lines.append("RED cuenta con **mayor densidad de CC**, BLUE debe cuidar los ángulos y limpiar marcas de control.")
+    if m["cc"] > 10.0:
+        lines.append("BLUE tiene **mayor densidad de CC (+)**, ideal para asegurar cazadas y neutralizar objetivos clave.")
+    elif m["cc"] < -10.0:
+        lines.append("RED cuenta con **ventaja notable en CC**, BLUE debe cuidar sus líneas de entrada y usar limpiar/tenacidad.")
 
     # Iniciación (Engage)
-    if m["engage"] > 1.0:
-        lines.append("La composición BLUE cuenta con **mejor engage directo**, tiene la iniciativa para forzar peleas.")
-    elif m["engage"] < -1.0:
-        lines.append("BLUE tiene **menos iniciación**; conviene jugar al counter-engage, desenganche o transiciones lentas.")
+    if m["engage"] > 10.0:
+        lines.append("La composición BLUE cuenta con **mejor engage directo**, manteniendo la iniciativa para proponer peleas.")
+    elif m["engage"] < -10.0:
+        lines.append("BLUE está **en desventaja de iniciación**; es crucial jugar al counter-engage o desenganche rápido.")
 
     # Durabilidad (Frontline)
-    if m["durability"] > 1.5:
-        lines.append("BLUE posee una **frontline más sólida/resistente**, óptima para combates de desgaste extendidos.")
-    elif m["durability"] < -1.5:
-        lines.append("RED es **significativamente más robusto**, BLUE debe evitar los duelos frontales prolongados.")
+    if m["durability"] > 12.0:
+        lines.append("BLUE posee una **frontline más sólida y robusta**, óptima para combates grupales extendidos.")
+    elif m["durability"] < -12.0:
+        lines.append("RED es **significativamente más resistente**, BLUE debe evitar choques frontales y buscar flancos.")
 
     # Desgaste y Espaciado (Poke & Kiting)
-    if m["poke"] > 1.5:
-        lines.append("BLUE destaca en **capacidad de Poke**, busque debilitar al rival antes de pelear los objetivos neutrales.")
-    if m["kiting"] > 1.0:
-        lines.append("BLUE tiene **mejor perfil de Kiting**, lo que le facilita castigar al rival mientras retrocede.")
+    if m["poke"] > 10.0:
+        lines.append("BLUE destaca en **capacidad de Poke**, busque debilitar al rival antes de iniciar los objetivos neutrales.")
+    if m["kiting"] > 10.0:
+        lines.append("BLUE tiene **mejor perfil de Kiting**, lo que le permite estirar las peleas y castigar mientras retrocede.")
 
-    # Balance de Tipos de Daño
-    if m["phys_dmg"] > m["mag_dmg"] and m["phys_dmg"] > 250:
-        lines.append("La composición de BLUE está **sesgada hacia el daño físico**, alertando la acumulación de armadura en RED.")
-    elif m["mag_dmg"] > m["phys_dmg"] and m["mag_dmg"] > 250:
-        lines.append("BLUE ejerce **fuerte presión de daño mágico**, obligando a RED a priorizar resistencia mágica temprana.")
+    # Balance y Sesgo de Daño
+    if m["phys_dmg"] > 20.0 and m["mag_dmg"] < -20.0:
+        lines.append("La composición de BLUE está **fuertemente sesgada hacia el daño físico**, facilitando que RED acumule armadura.")
+    elif m["mag_dmg"] > 20.0 and m["phys_dmg"] < -20.0:
+        lines.append("BLUE ejerce una **presión masiva de daño mágico**, obligando a RED a priorizar resistencia mágica temprana.")
 
     if not lines:
-        return "Las composiciones se encuentran equilibradas en sus ejes tácticos principales."
+        return "Las composiciones se encuentran altamente equilibradas en sus ejes tácticos principales."
 
     return " ".join(lines)
 
@@ -176,26 +179,32 @@ def render_draft_interface(tier_key):
                 # ==========================
                 # 1.1 PANEL TÁCTICO DE LA CAPA GOLD
                 # ==========================
-                st.markdown("### ⚙️ Resumen dimensional de la composición (BLUE vs RED)")
+                # ==========================
+                # 1.1 PANEL TÁCTICO DE LA CAPA GOLD
+                # ==========================
+                st.markdown("### ⚙️ Resumen dimensional de la composición (Ventaja Relativa %)")
                 
-                # Extracción manual de deltas dimensionales puras para estabilidad de UI
                 gold_metrics = calculate_gold_deltas(blue_sel, red_sel)
+
+                # Función auxiliar para dar formato limpio (+15.4% / -8.2%)
+                def fmt(val):
+                    return f"+{val:.1f}%" if val > 0 else f"{val:.1f}%"
 
                 colA, colB, colC = st.columns(3)
                 with colA:
-                    st.metric("Δ Control de Masas (CC)", f"{gold_metrics['cc']:.2f}")
-                    st.metric("Δ Iniciación (Engage)", f"{gold_metrics['engage']:.2f}")
-                    st.metric("Δ Hostigamiento (Poke)", f"{gold_metrics['poke']:.2f}")
+                    st.metric("Δ Control de Masas (CC)", fmt(gold_metrics['cc']))
+                    st.metric("Δ Iniciación (Engage)", fmt(gold_metrics['engage']))
+                    st.metric("Δ Hostigamiento (Poke)", fmt(gold_metrics['poke']))
 
                 with colB:
-                    st.metric("Δ Robustez (Durability)", f"{gold_metrics['durability']:.2f}")
-                    st.metric("Δ Espaciado (Kiting)", f"{gold_metrics['kiting']:.2f}")
-                    st.metric("Δ Utilidad / Mitigación", f"{gold_metrics['utility']:.2f}")
+                    st.metric("Δ Robustez (Durability)", fmt(gold_metrics['durability']))
+                    st.metric("Δ Espaciado (Kiting)", fmt(gold_metrics['kiting']))
+                    st.metric("Δ Utilidad / Mitigación", fmt(gold_metrics['utility']))
 
                 with colC:
-                    st.metric("Δ Presión Física (Phys Dmg)", f"{gold_metrics['phys_dmg']:.1f}")
-                    st.metric("Δ Presión Mágica (Mag Dmg)", f"{gold_metrics['mag_dmg']:.1f}")
-                    st.metric("Δ Daño Sostenido (DPS)", f"{gold_metrics['dps']:.1f}")
+                    st.metric("Δ Presión Física (Phys Dmg)", fmt(gold_metrics['phys_dmg']))
+                    st.metric("Δ Presión Mágica (Mag Dmg)", fmt(gold_metrics['mag_dmg']))
+                    st.metric("Δ Daño Sostenido (DPS)", fmt(gold_metrics['dps']))
 
                 # ==========================
                 # 1.2 COMENTARIO TIPO COACH
