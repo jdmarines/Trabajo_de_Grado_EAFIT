@@ -61,7 +61,7 @@ class Resources:
                 print(f"⚠️ Alerta: No se encontró el archivo del modelo para {tier} en '{path}'")
 
         # 2. Carga del Catálogo unificado de la Capa Gold
-        self.champs_df = pd.read_csv(CHAMPS_PATH)
+        self.champs_df = pd.read_csv(CHAMPS_PATH, sep=';')
 
         # Mapeos de Identidad Indispensables
         self.id2name: Dict[int, str] = self.champs_df.set_index("champ_id")["name"].to_dict()
