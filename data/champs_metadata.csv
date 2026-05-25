@@ -1,4 +1,4 @@
-﻿id;name;main_role;sub_role;class_1;class_2;Gold_Phys_Dmg;Gold_Mag_Dmg;Gold_DPS;Gold_Durability;Gold_CC;Gold_Poke;Gold_Engage;Gold_Utility;Gold_Kiting;win_rate_apex;win_rate_lowtier
+﻿champ_id;name;main_role;sub_role;class_1;class_2;Gold_Phys_Dmg;Gold_Mag_Dmg;Gold_DPS;Gold_Durability;Gold_CC;Gold_Poke;Gold_Engage;Gold_Utility;Gold_Kiting;win_rate_apex;win_rate_lowtier
 266;Aatrox;Top;Jungle;Juggernaut;;1256.43;0.0;95.13;3.27;4.0;8.25;1.25;0.15;1.75;51.38;44.76
 103;Ahri;Mid;;Burst;;0.0;1198.8;84.37;2.69;4.5;10.0;2.8;0.0;5.5;52.99;47.22
 84;Akali;Mid;Top;Assassin;;0.0;1592.32;99.4;3.18;0.5;8.25;0.68;0.05;1.25;52.13;46.17
