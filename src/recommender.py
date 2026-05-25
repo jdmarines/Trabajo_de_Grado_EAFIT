@@ -30,7 +30,8 @@ MODEL_PATHS = {
 }
 CHAMPS_PATH = DATA_PROC / "champs_metadata.csv"  # Base de datos con la Capa Gold construida
 
-
+if "id" in self.champs_df.columns:
+    self.champs_df.rename(columns={"id": "champ_id"}, inplace=True)
 # ==========================================
 # 📊 Data Classes para Salida Estructurada
 # ==========================================
