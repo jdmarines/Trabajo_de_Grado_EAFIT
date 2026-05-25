@@ -206,54 +206,58 @@ def render_draft_interface(tier_key):
             except Exception as e:
                 st.error(f"Error procesando la inferencia de la composición: {e}")
 
-            # ==========================
+# ==========================
             # 2) RECOMENDACIONES TOP-5
             # ==========================
             st.markdown("## 🧠 Recomendaciones de siguiente pick (Top-5)")
 
-            if len(blue_sel) > 4 or len(red_sel) > 4:
-                st.warning(
-                    "Para ver recomendaciones top-5, usa máximo **4 campeones por lado**.\n"
-                    "Con los 5 picks definidos el sistema asume que el draft concluyó."
-                )
+            # Solo asumimos que el draft cerró por completo si ambos lados están llenos
+            if len(blue_sel) == 5 and len(red_sel) == 5:
+                st.success("✨ ¡Draft finalizado! Ambos equipos han completado sus selecciones.")
             else:
                 col_blue, col_red = st.columns(2)
 
                 # 🔵 Recomendaciones para BLUE
                 with col_blue:
                     st.subheader("🔵 Sugerencias para BLUE")
-                    try:
-                        recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key)
-                        if not recs_blue:
-                            st.info("No hay candidatos viables disponibles.")
-                        else:
-                            for r in recs_blue:
-                                st.markdown(
-                                    f"**{r.champ_name}** \n"
-                                    f"P(Blue Win): **{r.prob_blue_win*100:.1f}%** | Score Táctico: *{r.score:.3f}* \n"
-                                    f"_{r.explanation}_"
-                                )
-                                st.markdown("---")
-                    except Exception as e:
-                        st.error(f"Error calculando recomendaciones para BLUE: {e}")
+                    if len(blue_sel) == 5:
+                        st.info("La composición de BLUE ya cuenta con sus 5 campeones.")
+                    else:
+                        try:
+                            recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key)
+                            if not recs_blue:
+                                st.info("No hay candidatos viables disponibles.")
+                            else:
+                                for r in recs_blue:
+                                    st.markdown(
+                                        f"**{r.champ_name}** \n"
+                                        f"P(Blue Win): **{r.prob_blue_win*100:.1f}%** | Score Táctico: *{r.score:.3f}* \n"
+                                        f"_{r.explanation}_"
+                                    )
+                                    st.markdown("---")
+                        except Exception as e:
+                            st.error(f"Error calculando recomendaciones para BLUE: {e}")
 
                 # 🔴 Recomendaciones para RED
                 with col_red:
                     st.subheader("🔴 Sugerencias para RED")
-                    try:
-                        recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key)
-                        if not recs_red:
-                            st.info("No hay candidatos viables disponibles.")
-                        else:
-                            for r in recs_red:
-                                st.markdown(
-                                    f"**{r.champ_name}** \n"
-                                    f"P(Red Win): **{r.prob_red_win*100:.1f}%** | Score Táctico: *{r.score:.3f}* \n"
-                                    f"_{r.explanation}_"
-                                )
-                                st.markdown("---")
-                    except Exception as e:
-                        st.error(f"Error calculando recomendaciones para RED: {e}")
+                    if len(red_sel) == 5:
+                        st.info("La composición de RED ya cuenta con sus 5 campeones.")
+                    else:
+                        try:
+                            recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key)
+                            if not recs_red:
+                                st.info("No hay candidatos viables disponibles.")
+                            else:
+                                for r in recs_red:
+                                    st.markdown(
+                                        f"**{r.champ_name}** \n"
+                                        f"P(Red Win): **{r.prob_red_win*100:.1f}%** | Score Táctico: *{r.score:.3f}* \n"
+                                        f"_{r.explanation}_"
+                                    )
+                                    st.markdown("---")
+                        except Exception as e:
+                            st.error(f"Error calculando recomendaciones para RED: {e}")
 
 
 # =====================================
