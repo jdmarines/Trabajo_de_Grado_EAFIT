@@ -234,7 +234,7 @@ def recommend_for(
     used_ids = set(blue_ids + red_ids)
 
     # Identificar el universo de campeones elegibles en el parche
-    candidate_ids = [cid for cid in RES.champ_features.index.astype(int) if cid not in used_ids]
+    candidate_ids = [cid for cid in RES.champs_df["champ_id"].astype(int) if cid not in used_ids]
 
     # Construcción de la Línea Base (Baseline del estado actual del Draft)
     base_blue = blue_ids.copy()
