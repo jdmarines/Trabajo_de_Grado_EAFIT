@@ -113,14 +113,20 @@ def coach_summary(m: dict) -> str:
 def render_draft_interface(tier_key):
     """
     Renderiza el simulador de draft para un tier específico ('apex' o 'lowtier').
-    Filtra los campeones dinámicamente para impedir duplicados entre ambos equipos.
+    Incluye fase de bloqueos (Bans) y filtros estrictos anti-duplicados.
     """
     # Catálogo unificado obtenido del dataframe cargado en el backend
     champ_list = sorted(RES.champs_df["name"].tolist())
 
-    # 🛠️ FUNCIÓN AUXILIAR: Filtra campeones ya seleccionados en otros selectboxes
+    # 🛠️ FUNCIÓN AUXILIAR: Filtra campeones seleccionados O baneados en cualquier casilla
     def get_available_options(current_key):
-        all_keys = [f"b{i}_{tier_key}" for i in range(1, 6)] + [f"r{i}_{tier_key}" for i in range(1, 6)]
+        # Registramos las llaves de los picks y también de los bans
+        all_keys = (
+            [f"b{i}_{tier_key}" for i in range(1, 6)] + 
+            [f"r{i}_{tier_key}" for i in range(1, 6)] +
+            [f"bb{i}_{tier_key}" for i in range(1, 6)] + 
+            [f"rb{i}_{tier_key}" for i in range(1, 6)]
+        )
         selected_elsewhere = set()
         
         for k in all_keys:
@@ -129,9 +135,38 @@ def render_draft_interface(tier_key):
                 if val != "(vacío)":
                     selected_elsewhere.add(val)
                     
-        # Retorna la lista limpia excluyendo lo elegido en otros lados
         return ["(vacío)"] + [c for c in champ_list if c not in selected_elsewhere]
 
+    # =========================================================================
+    # 🚫 FASE DE BLOQUEOS (BANS) - Interfaz Colapsable Compacta
+    # =========================================================================
+    with st.expander("🚫 Fase de Bloqueos (Bans)", expanded=False):
+        b_col, r_col = st.columns(2)
+        
+        with b_col:
+            st.markdown("<span style='color:#4A90E2'>**Bans Equipo BLUE**</span>", unsafe_url=True)
+            bb_cols = st.columns(5)
+            bb1 = bb_cols[0].selectbox("Ban 1", get_available_options(f"bb1_{tier_key}"), key=f"bb1_{tier_key}", label_visibility="collapsed")
+            bb2 = bb_cols[1].selectbox("Ban 2", get_available_options(f"bb2_{tier_key}"), key=f"bb2_{tier_key}", label_visibility="collapsed")
+            bb3 = bb_cols[2].selectbox("Ban 3", get_available_options(f"bb3_{tier_key}"), key=f"bb3_{tier_key}", label_visibility="collapsed")
+            bb4 = bb_cols[3].selectbox("Ban 4", get_available_options(f"bb4_{tier_key}"), key=f"bb4_{tier_key}", label_visibility="collapsed")
+            bb5 = bb_cols[4].selectbox("Ban 5", get_available_options(f"bb5_{tier_key}"), key=f"bb5_{tier_key}", label_visibility="collapsed")
+            
+        with r_col:
+            st.markdown("<span style='color:#E03A3E'>**Bans Equipo RED**</span>", unsafe_url=True)
+            rb_cols = st.columns(5)
+            rb1 = rb_cols[0].selectbox("Ban 1", get_available_options(f"rb1_{tier_key}"), key=f"rb1_{tier_key}", label_visibility="collapsed")
+            rb2 = rb_cols[1].selectbox("Ban 2", get_available_options(f"rb2_{tier_key}"), key=f"rb2_{tier_key}", label_visibility="collapsed")
+            rb3 = rb_cols[2].selectbox("Ban 3", get_available_options(f"rb3_{tier_key}"), key=f"rb3_{tier_key}", label_visibility="collapsed")
+            rb4 = rb_cols[3].selectbox("Ban 4", get_available_options(f"rb4_{tier_key}"), key=f"rb4_{tier_key}", label_visibility="collapsed")
+            rb5 = rb_cols[4].selectbox("Ban 5", get_available_options(f"rb5_{tier_key}"), key=f"rb5_{tier_key}", label_visibility="collapsed")
+
+    # Guardamos la lista de bloqueos activos
+    ban_sel = normalize_selection([bb1, bb2, bb3, bb4, bb5, rb1, rb2, rb3, rb4, rb5])
+
+    # =========================================================================
+    # ⚔️ FASE DE SELECCIÓN (PICKS)
+    # =========================================================================
     col1, col2 = st.columns(2)
 
     with col1:
@@ -158,19 +193,18 @@ def render_draft_interface(tier_key):
     st.markdown(
         """
         - Para **evaluar un draft completo**, selecciona hasta 5 campeones por lado y pulsa **Calcular probabilidad**.  
-        - Para **ver recomendaciones**, puedes dejar el draft vacío o avanzar de forma secuencial.
+        - Para **ver recomendaciones**, puedes dejar el draft vacío, aplicar bans o avanzar de forma secuencial.
         """
     )
 
-    # El botón ahora está correctamente indentado dentro de la función principal
     if st.button("🔍 Calcular probabilidad y recomendaciones", key=f"btn_{tier_key}"):
         
         # =========================================================================
-        # 🟢 ESTADO A: El Draft está completamente limpio (0 vs 0)
+        # 🟢 ESTADO A: El Draft está completamente limpio de picks (0 vs 0)
         # =========================================================================
         if len(blue_sel) == 0 and len(red_sel) == 0:
             st.markdown("## 📊 Resultado global del draft")
-            st.info("Fase inicial del Draft (0 vs 0). Revisa abajo las mejores aperturas recomendadas para este Elo.")
+            st.info("Fase inicial del Draft (Picks: 0 vs 0). Revisa abajo las mejores aperturas del Meta.")
             
         # =========================================================================
         # 🔵 ESTADO B: El Draft ya comenzó (Ej: 1 vs 0, 2 vs 1, etc.)
@@ -226,7 +260,7 @@ def render_draft_interface(tier_key):
                 st.stop()
 
         # =========================================================================
-        # 🧠 2) RECOMENDACIONES DE PICKS
+        # 🧠 2) RECOMENDACIONES DE PICKS (Enviando la lista 'ban_sel')
         # =========================================================================
         st.markdown("## 🧠 Recomendaciones de siguiente pick (Top-5)")
 
@@ -242,7 +276,7 @@ def render_draft_interface(tier_key):
                     st.info("La composición de BLUE ya cuenta con sus 5 campeones.")
                 else:
                     try:
-                        recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key)
+                        recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key, bans=ban_sel)
                         if not recs_blue:
                             st.info("No hay candidatos viables disponibles.")
                         else:
@@ -263,7 +297,7 @@ def render_draft_interface(tier_key):
                     st.info("La composición de RED ya cuenta con sus 5 campeones.")
                 else:
                     try:
-                        recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key)
+                        recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key, bans=ban_sel)
                         if not recs_red:
                             st.info("No hay candidatos viables disponibles.")
                         else:
