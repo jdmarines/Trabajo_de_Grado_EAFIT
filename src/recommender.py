@@ -221,7 +221,7 @@ def recommend_for(
 ) -> List[Recommendation]:
     """
     Evalúa el catálogo total disponible frente al estado actual del Draft.
-    Devuelve una lista ordenada por Score táctico (Probabilidad × Penalización de Rol).
+    Devuelve una lista ordenada por Score táctico o Win Rate base si está vacío.
     """
     tier_key = tier.lower()
     if tier_key not in RES.models:
@@ -231,6 +231,31 @@ def recommend_for(
     blue_ids = [normalize_champion(c) for c in blue_champs]
     red_ids = [normalize_champion(c) for c in red_champs]
     used_ids = set(blue_ids + red_ids)
+
+    # =========================================================================
+    # ✨ FUNCIÓN 1: Estado Inicial Vacío (Top 5 Win Rate del Tier Seleccionado)
+    # =========================================================================
+    if len(blue_ids) == 0 and len(red_ids) == 0:
+        wr_col = f"win_rate_{tier_key}" if f"win_rate_{tier_key}" in RES.champs_df.columns else "win_rate_role"
+        
+        # Obtenemos los mejores 5 campeones ordenados por el win rate de este Elo
+        top_champs = RES.champs_df.sort_values(by=wr_col, ascending=False).head(top_k)
+        
+        return [
+            Recommendation(
+                champ_id=int(row["champ_id"]),
+                champ_name=row["name"],
+                prob_blue_win=float(row[wr_col]) if side == "blue" else 1.0 - float(row[wr_col]),
+                prob_red_win=float(row[wr_col]) if side == "red" else 1.0 - float(row[wr_col]),
+                score=float(row[wr_col]),
+                explanation=f"Sugerencia de apertura: Mayor Win Rate base en este Elo ({float(row[wr_col])*100:.1f}%)."
+            )
+            for _, row in top_champs.iterrows()
+        ]
+    # =========================================================================
+
+    # Identificar el universo de campeones elegibles en el parche
+    candidate_ids = [cid for cid in RES.champs_df["champ_id"].astype(int) if cid not in used_ids]
 
     # Identificar el universo de campeones elegibles en el parche
     candidate_ids = [cid for cid in RES.champs_df["champ_id"].astype(int) if cid not in used_ids]
