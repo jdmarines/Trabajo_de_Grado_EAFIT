@@ -20,15 +20,15 @@ import joblib
 # ==========================================
 
 ROOT = Path(__file__).resolve().parents[1]  # /workspaces/LOL_Draft_Assistant
-DATA_PROC = ROOT / "data" / "processed"
+DATA_PROC = ROOT / "data" 
 MODELS_DIR = ROOT / "models"
 
 # Nuevos artefactos serializados de la búsqueda por grilla
 MODEL_PATHS = {
-    "lowtier": MODELS_DIR / "best_model_lowtier.joblib",
-    "apex": MODELS_DIR / "best_model_apex.joblib"
+    "lowtier": MODELS_DIR / "model_low_elo.joblib",
+    "apex": MODELS_DIR / "model_apex.joblib"
 }
-CHAMPS_PATH = DATA_PROC / "champs_gold_lvl13.csv"  # Base de datos con la Capa Gold construida
+CHAMPS_PATH = DATA_PROC / "champs_metadata.csv"  # Base de datos con la Capa Gold construida
 
 
 # ==========================================
