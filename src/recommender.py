@@ -102,25 +102,48 @@ def normalize_champion(spec: Union[int, str]) -> int:
     return RES.name2id[key]
 
 
-def get_primary_role(cid: int) -> str:
-    if "main_role" in RES.champs_df.columns:
-        return str(RES.champs_df.set_index("champ_id").at[cid, "main_role"])
-    return "FLEX"
+def get_champion_roles(cid: int) -> set:
+    """
+    Devuelve el conjunto de roles (main y sub) que puede jugar un campeón
+    para dar soporte a las composiciones FLEX.
+    """
+    roles = set()
+    row = RES.champs_df[RES.champs_df["champ_id"] == cid]
+    
+    if not row.empty:
+        if "main_role" in row.columns and pd.notna(row["main_role"].values[0]):
+            roles.add(str(row["main_role"].values[0]).strip().upper())
+        if "sub_role" in row.columns and pd.notna(row["sub_role"].values[0]):
+            roles.add(str(row["sub_role"].values[0]).strip().upper())
+            
+    return roles if roles else {"FLEX"}
 
 
 def role_penalty(cand_id: int, current_ids: List[int]) -> float:
-    """Aplica penalizaciones por redundancia estructural en el equipo (ej: triple ADC)."""
-    cand_role = get_primary_role(cand_id)
-    if cand_role == "FLEX":
+    """
+    Aplica penalizaciones dinámicas por redundancia estructural 
+    permitiendo transiciones de campeones Flex (ej: Karma Sup + Orianna Mid).
+    """
+    cand_roles = get_champion_roles(cand_id)
+    if "FLEX" in cand_roles: 
         return 1.0
 
-    roles = [get_primary_role(cid) for cid in current_ids if cid != -1]
-    count_same = sum(r == cand_role for r in roles)
+    # Obtenemos los sets de roles de todos los campeones ya elegidos en la escuadra
+    team_champions_roles = [get_champion_roles(cid) for cid in current_ids if cid != -1]
+    
+    # Evaluamos el peor solapamiento de roles para el candidato
+    max_overlap = 0
+    for cand_role in cand_roles:
+        # Contamos cuántos personajes en el equipo ya reclaman o pueden jugar este rol
+        count_same = sum(cand_role in roles for roles in team_champions_roles)
+        if count_same > max_overlap:
+            max_overlap = count_same
 
-    if count_same == 0: return 1.0
-    if count_same == 1: return 0.85  # Penalización ligera para duplicados válidos (ej: doble tanque)
-    if count_same == 2: return 0.50  # Composición desbalanceada
-    return 0.20                      # Forzado incomprensible estructuralmente
+    # Escala inteligente de penalización flex
+    if max_overlap == 0: return 1.0
+    if max_overlap == 1: return 0.95  # Penalización casi nula (permite el pick si hay un flex en mesa)
+    if max_overlap == 2: return 0.60  # Alerta: posible triple rol idéntico innecesario
+    return 0.25
 
 
 # ==========================================
