@@ -43,16 +43,15 @@ def get_champ_image_url(champ_name):
     if champ_name == "(vacío)":
         return None
     
-    # Buscamos el apiname en el catálogo para asegurar la sincronización de la CDN
     row = RES.champs_df[RES.champs_df["name"] == champ_name]
     if not row.empty and "apiname" in row.columns and pd.notna(row["apiname"]).any():
         api_name = str(row["apiname"].values[0]).strip()
     else:
-        # Limpieza absoluta de cualquier signo de puntuación común (espacios, comas, puntos, apostrofes)
         api_name = champ_name.replace(" ", "").replace("'", "").replace(".", "").replace(",", "").replace("_", "")
         
-        # Diccionario de excepciones exactas de la CDN de Riot Games (Case-Sensitive)
+        # Diccionario de excepciones corregido con MasterYi incluido
         mapping = {
+            "masteryi": "MasterYi",
             "belveth": "Belveth",
             "drmundo": "DrMundo",
             "wukong": "MonkeyKing",
@@ -71,7 +70,6 @@ def get_champ_image_url(champ_name):
         if key in mapping:
             api_name = mapping[key]
         else:
-            # Por defecto, asegurar que solo la primera letra sea mayúscula
             api_name = api_name.capitalize()
 
     return f"https://ddragon.leagueoflegends.com/cdn/14.3.1/img/champion/{api_name}.png"
@@ -319,16 +317,17 @@ def render_draft_interface(tier_key):
                     try:
                         recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key, bans=ban_sel)
                         for r in recs_blue:
-                                img_c, text_c = st.columns([1, 5])
-                                url = get_champ_image_url(r.champ_name)
-                                if url: img_c.image(url, width=60)
-                                text_c.markdown(
-                                    f"🥇 **{r.champ_name}** \n"
-                                    f"Score Táctico:  ` {r.score:.3f} `  (Prioridad Alta) \n"
-                                    f"Probabilidad de Victoria: **{r.prob_blue_win*100:.1f}%** \n"
-                                    f"*{r.explanation}*"
-                                )
-                                st.markdown("---")
+                            img_c, text_c = st.columns([1, 5])
+                            url = get_champ_image_url(r.champ_name)
+                            if url: img_c.image(url, width=60)
+                            
+                            # Formato limpio: El porcentaje al lado del nombre
+                            text_c.markdown(
+                                f"**{r.champ_name}** — Probabilidad: **{r.prob_blue_win*100:.1f}%**\n"
+                                f"Score Táctico: *{r.score:.3f}*\n"
+                                f"_{r.explanation}_"
+                            )
+                            st.markdown("---")
                     except Exception as e:
                         st.error(f"Error en sugerencias de BLUE: {e}")
 
@@ -340,16 +339,17 @@ def render_draft_interface(tier_key):
                     try:
                         recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key, bans=ban_sel)
                         for r in recs_red:
-                                img_c, text_c = st.columns([1, 5])
-                                url = get_champ_image_url(r.champ_name)
-                                if url: img_c.image(url, width=60)
-                                text_c.markdown(
-                                    f"🥇 **{r.champ_name}** \n"
-                                    f"Score Táctico:  ` {r.score:.3f} `  (Prioridad Alta) \n"
-                                    f"Probabilidad de Victoria: **{r.prob_red_win*100:.1f}%** \n"
-                                    f"*{r.explanation}*"
-                                )
-                                st.markdown("---")
+                            img_c, text_c = st.columns([1, 5])
+                            url = get_champ_image_url(r.champ_name)
+                            if url: img_c.image(url, width=60)
+                            
+                            # Formato limpio: El porcentaje al lado del nombre
+                            text_c.markdown(
+                                f"**{r.champ_name}** — Probabilidad: **{r.prob_red_win*100:.1f}%**\n"
+                                f"Score Táctico: *{r.score:.3f}*\n"
+                                f"_{r.explanation}_"
+                            )
+                            st.markdown("---")
                     except Exception as e:
                         st.error(f"Error en sugerencias de RED: {e}")
 
