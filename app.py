@@ -179,7 +179,7 @@ def render_draft_interface(tier_key):
     ban_sel = normalize_selection([bb1, bb2, bb3, bb4, bb5, rb1, rb2, rb3, rb4, rb5])
 
     # ==========================================
-    # ⚔️ INTERFAZ DE PICKS (Secuencial 1 al 5)
+    # ⚔️ INTERFAZ DE PICKS (Sin etiquetas de nombre)
     # ==========================================
     col1, col2 = st.columns(2)
     blue_picks = []
@@ -190,20 +190,24 @@ def render_draft_interface(tier_key):
         for i in range(1, 6):
             img_col, select_col = st.columns([1, 5])
             current_key = f"b{i}_{tier_key}"
-            chosen = select_col.selectbox(f"**Blue {i}**", get_available_options(current_key), key=current_key)
+            # Se colapsa el label para dejar el selector completamente libre de texto superior
+            chosen = select_col.selectbox(f"Blue {i}", get_available_options(current_key), key=current_key, label_visibility="collapsed")
             blue_picks.append(chosen)
             img_url = get_champ_image_url(chosen)
-            if img_url: img_col.image(img_url, width=54)
+            if img_url: 
+                img_col.image(img_url, width=54)
 
     with col2:
         st.subheader("🔴 Equipo RED")
         for i in range(1, 6):
             img_col, select_col = st.columns([1, 5])
             current_key = f"r{i}_{tier_key}"
-            chosen = select_col.selectbox(f"**Red {i}**", get_available_options(current_key), key=current_key)
+            # Se colapsa el label para dejar el selector completamente libre de texto superior
+            chosen = select_col.selectbox(f"Red {i}", get_available_options(current_key), key=current_key, label_visibility="collapsed")
             red_picks.append(chosen)
             img_url = get_champ_image_url(chosen)
-            if img_url: img_col.image(img_url, width=54)
+            if img_url: 
+                img_col.image(img_url, width=54)
 
     blue_sel = normalize_selection(blue_picks)
     red_sel  = normalize_selection(red_picks)
@@ -214,7 +218,7 @@ def render_draft_interface(tier_key):
     btn_col1, btn_col2, _ = st.columns([2, 1, 4])
     calc_pressed = btn_col1.button("🔍 Calcular probabilidad y recomendaciones", key=f"btn_{tier_key}")
     
-    # Botón de Reinicio Rápido Secuencial
+    # Botón de Reinicio Rápido
     if btn_col2.button("🧹 Limpiar Draft", key=f"clear_{tier_key}"):
         for i in range(1, 6):
             st.session_state[f"b{i}_{tier_key}"] = "(vacío)"
@@ -252,7 +256,6 @@ def render_draft_interface(tier_key):
                 chart_col, metrics_col = st.columns([1.3, 1.7])
                 
                 with chart_col:
-                    # Render del gráfico polar interactivo
                     radar_fig = plot_radar_chart(b_share, r_share, categories)
                     st.plotly_chart(radar_fig, use_container_width=True)
                 
