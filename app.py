@@ -38,7 +38,7 @@ def normalize_selection(selection_list):
 def get_champ_image_url(champ_name):
     """
     Obtiene la URL oficial del avatar del campeón desde Riot Data Dragon.
-    Si el nombre no se encuentra, genera un fallback limpio.
+    Limpia signos de puntuación y mapea las excepciones de mayúsculas de Riot.
     """
     if champ_name == "(vacío)":
         return None
@@ -48,11 +48,31 @@ def get_champ_image_url(champ_name):
     if not row.empty and "apiname" in row.columns and pd.notna(row["apiname"]).any():
         api_name = str(row["apiname"].values[0]).strip()
     else:
-        # Fallback de limpieza estándar
-        api_name = champ_name.replace(" ", "").replace("'", "").replace(".", "")
-        if api_name.lower() == "wukong": api_name = "MonkeyKing"
-        if api_name.lower() == "cho_gath": api_name = "Chogath"
-        if api_name.lower() == "kha_zix": api_name = "Khazix"
+        # Limpieza absoluta de cualquier signo de puntuación común (espacios, comas, puntos, apostrofes)
+        api_name = champ_name.replace(" ", "").replace("'", "").replace(".", "").replace(",", "").replace("_", "")
+        
+        # Diccionario de excepciones exactas de la CDN de Riot Games (Case-Sensitive)
+        mapping = {
+            "belveth": "Belveth",
+            "drmundo": "DrMundo",
+            "wukong": "MonkeyKing",
+            "chogath": "Chogath",
+            "khazix": "Khazix",
+            "reksai": "RekSai",
+            "renataglasc": "Renata",
+            "kaisa": "KaiSa",
+            "leblanc": "LeBlanc",
+            "ksante": "KSante",
+            "twistedfate": "TwistedFate",
+            "fiddlesticks": "FiddleSticks"
+        }
+        
+        key = api_name.lower()
+        if key in mapping:
+            api_name = mapping[key]
+        else:
+            # Por defecto, asegurar que solo la primera letra sea mayúscula
+            api_name = api_name.capitalize()
 
     return f"https://ddragon.leagueoflegends.com/cdn/14.3.1/img/champion/{api_name}.png"
 
