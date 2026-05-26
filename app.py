@@ -72,7 +72,7 @@ def get_champ_image_url(champ_name):
         else:
             api_name = api_name.capitalize()
 
-    return f"https://ddragon.leagueoflegends.com/cdn/14.3.1/img/champion/{api_name}.png"
+    return f"https://ddragon.leagueoflegends.com/cdn/15.24.1/img/champion/{api_name}.png"
 
 
 def calculate_gold_metrics(blue_sel, red_sel):
