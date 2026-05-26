@@ -51,6 +51,7 @@ def get_champ_image_url(champ_name):
         
         # Diccionario de excepciones corregido con MasterYi incluido
         mapping = {
+            "nunu&willump": "Nunu",
             "masteryi": "MasterYi",
             "belveth": "Belveth",
             "drmundo": "DrMundo",
