@@ -27,9 +27,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Lista fija de roles competitivos en orden oficial de Riot
-ROLES = ["Top", "Jungle", "Mid", "ADC", "Support"]
-
 # =====================================
 # UTILIDADES Y PROCESAMIENTO AVANZADO
 # =====================================
@@ -60,14 +57,11 @@ def get_champ_image_url(champ_name):
     return f"https://ddragon.leagueoflegends.com/cdn/14.3.1/img/champion/{api_name}.png"
 
 
-def calculate_gold_metrics(blue_dict, red_dict):
+def calculate_gold_metrics(blue_sel, red_sel):
     """
     Calcula los valores absolutos compartidos (para el gráfico de radar)
     y las ventajas relativas en porcentaje (para los paneles de métricas).
     """
-    blue_sel = [blue_dict[r] for r in ROLES if blue_dict[r] != "(vacío)"]
-    red_sel = [red_dict[r] for r in ROLES if red_dict[r] != "(vacío)"]
-    
     blue_ids = [normalize_champion(c) for c in blue_sel]
     red_ids = [normalize_champion(c) for c in red_sel]
     
@@ -148,8 +142,8 @@ def render_draft_interface(tier_key):
     # Filtrado dinámico estricto anti-duplicados (Picks y Bans cruzados)
     def get_available_options(current_key):
         all_keys = (
-            [f"b_{r.lower()}_{tier_key}" for r in ROLES] + 
-            [f"r_{r.lower()}_{tier_key}" for r in ROLES] +
+            [f"b{i}_{tier_key}" for i in range(1, 6)] + 
+            [f"r{i}_{tier_key}" for i in range(1, 6)] +
             [f"bb{i}_{tier_key}" for i in range(1, 6)] + 
             [f"rb{i}_{tier_key}" for i in range(1, 6)]
         )
@@ -185,35 +179,34 @@ def render_draft_interface(tier_key):
     ban_sel = normalize_selection([bb1, bb2, bb3, bb4, bb5, rb1, rb2, rb3, rb4, rb5])
 
     # ==========================================
-    # ⚔️ INTERFAZ DE PICKS (Por Roles oficiales)
+    # ⚔️ INTERFAZ DE PICKS (Secuencial 1 al 5)
     # ==========================================
     col1, col2 = st.columns(2)
-    blue_picks = {}
-    red_picks = {}
+    blue_picks = []
+    red_picks = []
 
     with col1:
         st.subheader("🔵 Equipo BLUE")
-        for r in ROLES:
-            # Renderizado en paralelo: Imagen + Selector de Rol
+        for i in range(1, 6):
             img_col, select_col = st.columns([1, 5])
-            current_key = f"b_{r.lower()}_{tier_key}"
-            chosen = select_col.selectbox(f"**{r}**", get_available_options(current_key), key=current_key)
-            blue_picks[r] = chosen
+            current_key = f"b{i}_{tier_key}"
+            chosen = select_col.selectbox(f"**Blue {i}**", get_available_options(current_key), key=current_key)
+            blue_picks.append(chosen)
             img_url = get_champ_image_url(chosen)
             if img_url: img_col.image(img_url, width=54)
 
     with col2:
         st.subheader("🔴 Equipo RED")
-        for r in ROLES:
+        for i in range(1, 6):
             img_col, select_col = st.columns([1, 5])
-            current_key = f"r_{r.lower()}_{tier_key}"
-            chosen = select_col.selectbox(f"**{r}**", get_available_options(current_key), key=current_key)
-            red_picks[r] = chosen
+            current_key = f"r{i}_{tier_key}"
+            chosen = select_col.selectbox(f"**Red {i}**", get_available_options(current_key), key=current_key)
+            red_picks.append(chosen)
             img_url = get_champ_image_url(chosen)
             if img_url: img_col.image(img_url, width=54)
 
-    blue_sel = [blue_picks[r] for r in ROLES if blue_picks[r] != "(vacío)"]
-    red_sel  = [red_picks[r] for r in ROLES if red_picks[r] != "(vacío)"]
+    blue_sel = normalize_selection(blue_picks)
+    red_sel  = normalize_selection(red_picks)
 
     st.divider()
 
@@ -221,12 +214,11 @@ def render_draft_interface(tier_key):
     btn_col1, btn_col2, _ = st.columns([2, 1, 4])
     calc_pressed = btn_col1.button("🔍 Calcular probabilidad y recomendaciones", key=f"btn_{tier_key}")
     
-    # 🧹 FUNCIÓN 3: Botón de Reinicio Rápido
+    # Botón de Reinicio Rápido Secuencial
     if btn_col2.button("🧹 Limpiar Draft", key=f"clear_{tier_key}"):
-        for r in ROLES:
-            st.session_state[f"b_{r.lower()}_{tier_key}"] = "(vacío)"
-            st.session_state[f"r_{r.lower()}_{tier_key}"] = "(vacío)"
         for i in range(1, 6):
+            st.session_state[f"b{i}_{tier_key}"] = "(vacío)"
+            st.session_state[f"r{i}_{tier_key}"] = "(vacío)"
             st.session_state[f"bb{i}_{tier_key}"] = "(vacío)"
             st.session_state[f"rb{i}_{tier_key}"] = "(vacío)"
         st.rerun()
@@ -253,11 +245,9 @@ def render_draft_interface(tier_key):
                 with c2: st.metric("Probabilidad de victoria RED", f"{p_red*100:.1f}%")
                 st.progress(p_blue)
 
-                # ==========================================
-                # 📊 FUNCIÓN 1: Panel Táctico Combinado (Gráfico + Métricas)
-                # ==========================================
+                # Panel Táctico Combinado (Gráfico + Métricas)
                 st.markdown("### ⚙️ Resumen dimensional de la composición (Ventaja Relativa %)")
-                gold_metrics, b_share, r_share, categories = calculate_gold_metrics(blue_picks, red_picks)
+                gold_metrics, b_share, r_share, categories = calculate_gold_metrics(blue_sel, red_sel)
                 
                 chart_col, metrics_col = st.columns([1.3, 1.7])
                 
@@ -301,7 +291,7 @@ def render_draft_interface(tier_key):
             with col_blue:
                 st.subheader("🔵 Sugerencias para BLUE")
                 if len(blue_sel) == 5:
-                    st.info("BLUE ya completó sus 5 picks de rol.")
+                    st.info("BLUE ya completó sus 5 picks.")
                 else:
                     try:
                         recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key, bans=ban_sel)
@@ -321,7 +311,7 @@ def render_draft_interface(tier_key):
             with col_red:
                 st.subheader("🔴 Sugerencias para RED")
                 if len(red_sel) == 5:
-                    st.info("RED ya completó sus 5 picks de rol.")
+                    st.info("RED ya completó sus 5 picks.")
                 else:
                     try:
                         recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key, bans=ban_sel)
