@@ -154,7 +154,17 @@ def coach_summary(m: dict) -> str:
 # =====================================
 # INTERFAZ MODULAR DE DRAFT
 # =====================================
-
+def callback_limpiar_draft(tier_key):
+    """
+    Función Callback que ejecuta la limpieza de los estados antes 
+    de que Streamlit renderice los widgets de la pantalla.
+    """
+    for i in range(1, 6):
+        st.session_state[f"b{i}_{tier_key}"] = "(vacío)"
+        st.session_state[f"r{i}_{tier_key}"] = "(vacío)"
+        st.session_state[f"bb{i}_{tier_key}"] = "(vacío)"
+        st.session_state[f"rb{i}_{tier_key}"] = "(vacío)"
+        
 def render_draft_interface(tier_key):
     champ_list = sorted(RES.champs_df["name"].tolist())
 
@@ -238,13 +248,12 @@ def render_draft_interface(tier_key):
     calc_pressed = btn_col1.button("🔍 Calcular probabilidad y recomendaciones", key=f"btn_{tier_key}")
     
     # Botón de Reinicio Rápido
-    if btn_col2.button("🧹 Limpiar Draft", key=f"clear_{tier_key}"):
-        for i in range(1, 6):
-            st.session_state[f"b{i}_{tier_key}"] = "(vacío)"
-            st.session_state[f"r{i}_{tier_key}"] = "(vacío)"
-            st.session_state[f"bb{i}_{tier_key}"] = "(vacío)"
-            st.session_state[f"rb{i}_{tier_key}"] = "(vacío)"
-        st.rerun()
+    btn_col2.button(
+            "🧹 Limpiar Draft", 
+            key=f"clear_{tier_key}", 
+            on_click=callback_limpiar_draft, 
+            args=(tier_key,)
+        )
 
     if calc_pressed:
         if len(blue_sel) == 0 and len(red_sel) == 0:
