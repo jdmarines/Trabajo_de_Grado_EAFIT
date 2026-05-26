@@ -319,15 +319,16 @@ def render_draft_interface(tier_key):
                     try:
                         recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key, bans=ban_sel)
                         for r in recs_blue:
-                            img_c, text_c = st.columns([1, 5])
-                            url = get_champ_image_url(r.champ_name)
-                            if url: img_c.image(url, width=60)
-                            text_c.markdown(
-                                f"**{r.champ_name}** \n"
-                                f"P(Blue Win): **{r.prob_blue_win*100:.1f}%** | Score Táctico: *{r.score:.3f}* \n"
-                                f"_{r.explanation}_"
-                            )
-                            st.markdown("---")
+                                img_c, text_c = st.columns([1, 5])
+                                url = get_champ_image_url(r.champ_name)
+                                if url: img_c.image(url, width=60)
+                                text_c.markdown(
+                                    f"🥇 **{r.champ_name}** \n"
+                                    f"Score Táctico:  ` {r.score:.3f} `  (Prioridad Alta) \n"
+                                    f"Probabilidad de Victoria: **{r.prob_blue_win*100:.1f}%** \n"
+                                    f"*{r.explanation}*"
+                                )
+                                st.markdown("---")
                     except Exception as e:
                         st.error(f"Error en sugerencias de BLUE: {e}")
 
@@ -339,15 +340,16 @@ def render_draft_interface(tier_key):
                     try:
                         recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key, bans=ban_sel)
                         for r in recs_red:
-                            img_c, text_c = st.columns([1, 5])
-                            url = get_champ_image_url(r.champ_name)
-                            if url: img_c.image(url, width=60)
-                            text_c.markdown(
-                                f"**{r.champ_name}** \n"
-                                f"P(Red Win): **{r.prob_red_win*100:.1f}%** | Score Táctico: *{r.score:.3f}* \n"
-                                f"_{r.explanation}_"
-                              )
-                            st.markdown("---")
+                                img_c, text_c = st.columns([1, 5])
+                                url = get_champ_image_url(r.champ_name)
+                                if url: img_c.image(url, width=60)
+                                text_c.markdown(
+                                    f"🥇 **{r.champ_name}** \n"
+                                    f"Score Táctico:  ` {r.score:.3f} `  (Prioridad Alta) \n"
+                                    f"Probabilidad de Victoria: **{r.prob_red_win*100:.1f}%** \n"
+                                    f"*{r.explanation}*"
+                                )
+                                st.markdown("---")
                     except Exception as e:
                         st.error(f"Error en sugerencias de RED: {e}")
 
