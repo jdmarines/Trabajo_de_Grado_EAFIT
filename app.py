@@ -373,20 +373,16 @@ def render_draft_interface(tier_key):
 # =====================================
 
 st.title("🎮 Draft Recommender")
-st.markdown(
-    """
-    Simulador estratégico avanzado con análisis multidimensional de la Capa Gold y motores de inferencia predictiva segmentados.
-    """
-)
+
 
 st.divider()
 
 tab_apex, tab_low = st.tabs(["🏆 Tier Apex (High Elo)", "🔰 Tier Low Elo"])
 
 with tab_apex:
-    st.markdown("**Pipeline de Inferencia: APEX** (Partidas de Master a Challenger). Foco en Meta de rendimiento y counter-picks.")
+    st.markdown("**Pipeline de Inferencia: APEX** (Partidas de Master a Challenger).)
     render_draft_interface(tier_key="apex")
 
 with tab_low:
-    st.markdown("**Pipeline de Inferencia: LOW ELO** (Partidas de Iron hasta Emerald). Foco en win rates brutos y confort.")
+    st.markdown("**Pipeline de Inferencia: LOW ELO** (Partidas de Iron hasta Bronze).)
     render_draft_interface(tier_key="lowtier")
