@@ -150,55 +150,39 @@ def role_penalty(cand_id: int, current_ids: List[int]) -> float:
 # 🧬 Tubería de Construcción de Características
 # ==========================================
 
-def build_features_for_draft(blue_ids: List[int], red_ids: List[int], tier: str) -> pd.DataFrame:
+def build_features_for_draft(blue_ids, red_ids, tier="lowtier"):
     """
-    Simula de forma exacta el comportamiento de la función 'get_stage_data' de entrenamiento.
-    Reconstruye las variables correspondientes a la etapa óptima guardada en el artefacto.
+    Construye el vector de características para los modelos predictivos.
+    Dado que ambos modelos (Apex y Low Elo) usan las mismas 13 variables,
+    se unifica el retorno para evitar descuadres en Pandas.
     """
     tier_key = tier.lower()
-    if tier_key not in RES.models:
-        raise ValueError(f"El backend de inferencia para el tier '{tier}' no está inicializado.")
-
-    artifact = RES.models[tier_key]
-    stage = artifact['stage']
-    expected_features = artifact['feature_names']
-
-    # 1. Componente Macro: Extracción y Diferencial de Win Rate por Elo
+    
+    # 1. Componente base (5 IDs Blue + 5 IDs Red = 10 columnas)
+    feat_data = []
+    feat_data.extend(blue_ids)
+    feat_data.extend(red_ids)
+    
+    # 2. Cálculo de Win Rates del servidor según el Elo seleccionado
     wr_col = f"win_rate_{tier_key}" if f"win_rate_{tier_key}" in RES.champs_df.columns else "win_rate_role"
     wr_map = RES.champs_df.set_index("champ_id")[wr_col].to_dict()
-
+    
     b_wrs = [wr_map.get(c, 0.50) for c in blue_ids if c != -1]
     r_wrs = [wr_map.get(c, 0.50) for c in red_ids if c != -1]
-
-    d_wr = np.mean(b_wrs) - np.mean(r_wrs) if b_wrs and r_wrs else 0.0
-
-    # 2. Componente Micro Táctico: Sumatorios de Vectores Gold (Placeholders -1 aportan ceros)
-    b_v = np.sum([RES.champ_vectors.get(c, np.zeros(9)) for c in blue_ids], axis=0)
-    r_v = np.sum([RES.champ_vectors.get(c, np.zeros(9)) for c in red_ids], axis=0)
-
-    deltas_22 = list(b_v - r_v)
-
-    # 3. Componente Dinámico: Cómputo de Ratios Relacionales Cruzados
-    # Índices: 0:Phys_Dmg, 2:DPS, 3:Durability, 4:CC, 5:Poke, 6:Engage
-    r1 = (b_v[0] / (r_v[3] + 1)) - (r_v[0] / (b_v[3] + 1))  # R1: Ráfaga Física vs Puntos de Salud Efectivos
-    r2 = (b_v[5] / (r_v[6] + 1)) - (r_v[5] / (b_v[6] + 1))  # R2: Hostigamiento en Rango vs Iniciación Macro
-    r3 = (b_v[4] / (r_v[2] + 1)) - (r_v[4] / (b_v[2] + 1))  # R3: Densidad de CC vs Capacidad de Daño por Segundo
-    ratios = [r1, r2, r3]
-
-    # 4. Enrutamiento Estricto según la Etapa del Artefacto
-    if stage == 1:
-        f = [d_wr]
-    elif stage == 2:
-        f = deltas_22
-    elif stage == 3:
-        f = deltas_22 + ratios
-    elif stage == 4:
-        f = [d_wr] + deltas_22 + ratios
-    else:
-        raise ValueError(f"Etapa de diseño operacional {stage} desconocida.")
-
-    # Convertimos a DataFrame asignando las columnas exactas del entrenamiento para el Pipeline
-    return pd.DataFrame([f], columns=expected_features)
+    
+    b_mean = np.mean(b_wrs) if b_wrs else 0.50
+    r_mean = np.mean(r_wrs) if r_wrs else 0.50
+    d_wr = b_mean - r_mean
+    
+    # Añadimos las 3 métricas macro (+3 columnas = 13 en total)
+    feat_data.extend([b_mean, r_mean, d_wr])
+    
+    # 3. Definición estricta de los 13 nombres de columnas esenciales
+    # IMPORTANTE: Este orden debe ser idéntico al que usaste en tu Jupyter Notebook / script de entrenamiento
+    feature_names = [f"b{i}" for i in range(1, 6)] + [f"r{i}" for i in range(1, 6)] + ["b_mean", "r_mean", "d_wr"]
+    
+    # Retornamos el DataFrame limpio con las 13 columnas simétricas para AMBOS modelos
+    return pd.DataFrame([feat_data], columns=feature_names)
 
 
 # ==========================================
