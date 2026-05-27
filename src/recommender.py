@@ -224,7 +224,7 @@ def predict_blue_win_prob(df_feats, tier="lowtier"):
     """
     Predice la probabilidad de victoria separando la estructura:
     Low Elo -> Pipeline directo (XGBoost)
-    Apex -> Diccionario con RandomForest interno
+    Apex -> Diccionario con RandomForest interno (Escaneo dinámico de llaves)
     """
     tier_key = tier.lower()
     model_entry = RES.models.get(tier_key)
@@ -235,9 +235,38 @@ def predict_blue_win_prob(df_feats, tier="lowtier"):
     # 🔄 Extraer el modelo real dependiendo de cómo fue guardado
     if isinstance(model_entry, dict):
         model = model_entry.get("model")
+        
+        # 🛡️ SÚPER FILTRO: Si la llave "model" no existe, escaneamos dinámicamente 
+        # los valores del diccionario para encontrar el objeto de ML real.
+        if model is None:
+            for val in model_entry.values():
+                if hasattr(val, "predict_proba") or hasattr(val, "predict"):
+                    model = val
+                    break
+            
+            # Fallback final si el diccionario viniera plano
+            if model is None:
+                model = model_entry
     else:
         model = model_entry # Es el Pipeline directo de Low Elo
 
+    # =========================================================================
+    # ⚙️ Ejecución Segura de la Predicción
+    # =========================================================================
+    try:
+        # Tanto el Pipeline de Sklearn como el XGBClassifier usan predict_proba
+        preds_proba = model.predict_proba(df_feats)
+        return float(preds_proba[0][1])
+    except AttributeError:
+        # Fallback si el modelo es un Booster nativo puro de XGBoost
+        try:
+            import xgboost as xgb
+            dmat = xgb.DMatrix(df_feats) if not isinstance(df_feats, xgb.DMatrix) else df_feats
+            preds = model.predict(dmat)
+            return float(preds[0])
+        except Exception:
+            # Última línea de defensa analítica ante cualquier imprevisto
+            return 0.50
     # =========================================================================
     # ⚙️ Ejecución de la Predicción
     # =========================================================================
