@@ -377,14 +377,14 @@ st.title("🎮WinRate Optimizer: LoL Draft Simulator")
 st.divider()
 
 # 💡 Opción con Corona y Escudo de Hierro (muy estilo LoL)
-tab_apex, tab_low = st.tabs(["👑 Tier Apex (High Elo)", "⚔️ Tier Low Elo"])
+tab_apex, tab_low = st.tabs(["👑 High Elo", "⚔️ Low Elo"])
 
 with tab_apex:
     # ✨ FIX: Comillas cerradas correctamente al final: .**")
-    st.markdown("**Pipeline de Inferencia: APEX** (Partidas de Master a Challenger).")
+    st.markdown("**Partidas de Master a Challenger**")
     render_draft_interface(tier_key="apex")
 
 with tab_low:
     # ✨ FIX: Comillas cerradas correctamente al final: .**")
-    st.markdown("**Pipeline de Inferencia: LOW ELO** (Partidas de Iron hasta Bronze).")
+    st.markdown("**Partidas de Hierro hasta Bronce**")
     render_draft_interface(tier_key="lowtier")
