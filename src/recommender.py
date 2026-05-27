@@ -222,9 +222,8 @@ def build_features_for_draft(blue_ids, red_ids, tier="lowtier"):
 
 def predict_blue_win_prob(df_feats, tier="lowtier"):
     """
-    Predice la probabilidad de victoria separando la estructura:
-    Low Elo -> Pipeline directo (XGBoost)
-    Apex -> Diccionario con RandomForest interno (Escaneo dinámico de llaves)
+    Predice la probabilidad de victoria adaptando dinámicamente las columnas
+    de entrada según el número exacto de variables que el modelo espera (1, 13 o 26).
     """
     tier_key = tier.lower()
     model_entry = RES.models.get(tier_key)
@@ -232,23 +231,55 @@ def predict_blue_win_prob(df_feats, tier="lowtier"):
     if model_entry is None:
         return 0.50
 
-    # 🔄 Extraer el modelo real dependiendo de cómo fue guardado
+    # 1. Extraer el objeto del modelo real
     if isinstance(model_entry, dict):
         model = model_entry.get("model")
-        
-        # 🛡️ SÚPER FILTRO: Si la llave "model" no existe, escaneamos dinámicamente 
-        # los valores del diccionario para encontrar el objeto de ML real.
         if model is None:
             for val in model_entry.values():
                 if hasattr(val, "predict_proba") or hasattr(val, "predict"):
                     model = val
                     break
-            
-            # Fallback final si el diccionario viniera plano
             if model is None:
                 model = model_entry
     else:
-        model = model_entry # Es el Pipeline directo de Low Elo
+        model = model_entry
+
+    # =========================================================================
+    # 🧠 ADAPTACIÓN DINÁMICA DE ENTRADA (Filtro Anti-Descuadres)
+    # =========================================================================
+    X_input = df_feats
+    
+    if hasattr(model, "n_features_in_"):
+        n_expected = model.n_features_in_
+        
+        if n_expected == 1:
+            # ✨ EL FIX: Si el modelo solo espera 1 variable (ej: d_wr), filtramos solo esa columna
+            if "d_wr" in df_feats.columns:
+                X_input = df_feats[["d_wr"]]
+            else:
+                X_input = df_feats.iloc[:, [-1]] # Fallback: Tomar la última columna
+                
+        elif n_expected == 13:
+            # Asegurar que tenga estrictamente las 13 columnas macros base
+            base_cols = [f"b{i}" for i in range(1, 6)] + [f"r{i}" for i in range(1, 6)] + ["b_mean", "r_mean", "d_wr"]
+            X_input = df_feats[[c for c in base_cols if c in df_feats.columns]]
+            if X_input.shape[1] != 13:
+                X_input = df_feats.iloc[:, :13]
+
+    # =========================================================================
+    # ⚙️ Ejecución de la Predicción
+    # =========================================================================
+    try:
+        preds_proba = model.predict_proba(X_input)
+        return float(preds_proba[0][1])
+    except AttributeError:
+        try:
+            import xgboost as xgb
+            dmat = xgb.DMatrix(X_input) if not isinstance(X_input, xgb.DMatrix) else X_input
+            preds = model.predict(dmat)
+            return float(preds[0])
+        except Exception:
+            return 0.50
 
     # =========================================================================
     # ⚙️ Ejecución Segura de la Predicción
