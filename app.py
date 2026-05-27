@@ -372,7 +372,7 @@ def render_draft_interface(tier_key):
 # VISTA PRINCIPAL (TABS)
 # =====================================
 
-st.title("🎮WinRate Optimizer: LoL Draft Simulator")
+st.title("🎮Win Rate Optimizer: LoL Draft Simulator")
 
 st.divider()
 
