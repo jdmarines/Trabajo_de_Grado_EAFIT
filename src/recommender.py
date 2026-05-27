@@ -50,16 +50,23 @@ class Recommendation:
 
 class Resources:
     def __init__(self):
-        # 1. Carga Dinámica de Modelos por Elos (PARCHEADO CONTRA KEYERRORS)
-        self.models: Dict[str, Dict[str, Any]] = {}
+        # 1. Carga Dinámica de Modelos por Elos
+        self.models: Dict[str, Any] = {}
         for tier, path in MODEL_PATHS.items():
             if path.exists():
-                self.models[tier] = joblib.load(path)
+                loaded_object = joblib.load(path)
+                self.models[tier] = loaded_object
                 
-                # 🛡️ Usamos .get() seguro por si el archivo .joblib de Low Elo viene sin estas llaves
-                m_type = self.models[tier].get('model_type', 'xgb' if 'low' in tier else 'rf')
-                m_stage = self.models[tier].get('stage', 1)
-                
+                # 🛡️ Verificación de tipo: ¿Es un diccionario o un Pipeline/Modelo directo?
+                if isinstance(loaded_object, dict):
+                    m_type = loaded_object.get('model_type', 'rf')
+                    m_stage = loaded_object.get('stage', 1)
+                else:
+                    # Si es un Pipeline directo (como tu Low Elo)
+                    class_name = type(loaded_object).__name__.lower()
+                    m_type = 'xgb_pipeline' if 'xgb' in class_name or 'pipeline' in class_name else 'model'
+                    m_stage = 2  # Asumimos etapa avanzada por ser Pipeline
+
                 print(f"✅ Cargado Backend de Inferencia para TIER: {tier.upper()} ({m_type} - Etapa {m_stage})")
             else:
                 print(f"⚠️ Alerta: No se encontró el archivo del modelo para {tier} en '{path}'")
@@ -77,19 +84,18 @@ class Resources:
             if "apiname" in row and pd.notna(row["apiname"]):
                 self.name2id[str(row["apiname"]).strip().lower()] = cid
 
-        # Orden riguroso e invariante de las 9 dimensiones de la Capa Gold Lvl 13
+        # Orden riguroso de las 9 dimensiones de la Capa Gold Lvl 13
         self.gold_cols = [
             'Gold_Phys_Dmg', 'Gold_Mag_Dmg', 'Gold_DPS', 
             'Gold_Durability', 'Gold_CC', 'Gold_Poke', 
             'Gold_Engage', 'Gold_Utility', 'Gold_Kiting'
         ]
 
-        # Construcción de tensores de consulta rápida por campeón
+        # Construcción de vectores de consulta rápida
         self.champ_vectors: Dict[int, np.ndarray] = {}
         for _, row in self.champs_df.iterrows():
             cid = int(row["champ_id"])
             self.champ_vectors[cid] = np.array([row[col] for col in self.gold_cols], dtype=float)
-
 
 RES = Resources()
 
@@ -196,46 +202,35 @@ def build_features_for_draft(blue_ids, red_ids, tier="lowtier"):
 
 def predict_blue_win_prob(df_feats, tier="lowtier"):
     """
-    Ejecuta la predicción de victoria detectando dinámicamente la librería 
-    del modelo (XGBoost vs Scikit-Learn) sin depender de llaves de texto.
+    Predice la probabilidad de victoria separando la estructura:
+    Low Elo -> Pipeline directo (XGBoost)
+    Apex -> Diccionario con RandomForest interno
     """
     tier_key = tier.lower()
     model_entry = RES.models.get(tier_key)
     
-    if not model_entry:
-        return 0.50 # Fallback neutral si el modelo no existe
+    if model_entry is None:
+        return 0.50
 
-    # Extraemos el objeto de machine learning real de forma segura
+    # 🔄 Extraer el modelo real dependiendo de cómo fue guardado
     if isinstance(model_entry, dict):
-        model = model_entry.get("model", model_entry)
+        model = model_entry.get("model")
     else:
-        model = model_entry
-
-    # 🧠 DETECCIÓN DINÁMICA: Analizamos el nombre de la clase real del objeto
-    class_name = type(model).__name__.lower()
-    is_xgb = "xgb" in class_name or "booster" in class_name
+        model = model_entry # Es el Pipeline directo de Low Elo
 
     # =========================================================================
-    # 🔰 SI EL MODELO ES XGBOOST (Low Elo)
+    # ⚙️ Ejecución de la Predicción
     # =========================================================================
-    if is_xgb:
-        try:
-            # Si se guardó usando la API compatible con Sklearn (XGBClassifier)
-            preds_proba = model.predict_proba(df_feats)
-            return float(preds_proba[0][1])
-        except AttributeError:
-            # Si se guardó usando la API nativa de XGBoost (xgb.train)
-            import xgboost as xgb
-            dmat = xgb.DMatrix(df_feats)
-            preds = model.predict(dmat)
-            return float(preds[0])
-
-    # =========================================================================
-    # 🏆 SI EL MODELO ES RANDOM FOREST / SKLEARN (Apex)
-    # =========================================================================
-    else:
+    try:
+        # Tanto el Pipeline de Sklearn como el XGBClassifier usan predict_proba
         preds_proba = model.predict_proba(df_feats)
         return float(preds_proba[0][1])
+    except AttributeError:
+        # Fallback de seguridad extrema por si es un Booster nativo puro de XGBoost
+        import xgboost as xgb
+        dmat = xgb.DMatrix(df_feats)
+        preds = model.predict(dmat)
+        return float(preds[0])
 
 def explain_candidate(champ_id: int, side: str) -> str:
     """Genera explicaciones cualitativas diagnósticas basadas en el perfil Gold del personaje."""
