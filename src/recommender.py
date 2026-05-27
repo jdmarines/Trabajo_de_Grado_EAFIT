@@ -260,11 +260,11 @@ def recommend_for(
     side: str = "blue",
     tier: str = "lowtier",
     top_k: int = 5,
-    bans: List[Union[int, str]] = None  # ✨ NUEVO: Parámetro de bans
+    bans: List[Union[int, str]] = None
 ) -> List[Recommendation]:
     """
     Evalúa el catálogo total disponible frente al estado actual del Draft.
-    Excluye tanto los campeones seleccionados como los baneados.
+    Usa la función predict_blue_win_prob unificada para evitar KeyErrors.
     """
     tier_key = tier.lower()
     if tier_key not in RES.models:
@@ -275,16 +275,17 @@ def recommend_for(
     red_ids = [normalize_champion(c) for c in red_champs]
     ban_ids = [normalize_champion(c) for c in bans] if bans else []
     
-    # ✨ SOLUCIÓN: Agregamos los bans al set de IDs usados para que el motor los ignore
+    # Excluir de las recomendaciones lo que ya está pickeado o baneado
     used_ids = set(blue_ids + red_ids + ban_ids)
 
+    # Mapeo rápido de IDs a Nombres para las explicaciones
+    id_to_name = RES.champs_df.set_index("champ_id")["name"].to_dict()
+
     # =========================================================================
-    # Estado Inicial Vacío (Top 5 Win Rate del Tier Seleccionado)
+    # Estado Inicial Vacío (Top 5 Win Rate base del Tier)
     # =========================================================================
     if len(blue_ids) == 0 and len(red_ids) == 0:
         wr_col = f"win_rate_{tier_key}" if f"win_rate_{tier_key}" in RES.champs_df.columns else "win_rate_role"
-        
-        # Filtramos el catálogo para no sugerir campeones que ya fueron baneados en el arranque
         available_champs = RES.champs_df[~RES.champs_df["champ_id"].isin(used_ids)]
         top_champs = available_champs.sort_values(by=wr_col, ascending=False).head(top_k)
         
@@ -295,76 +296,76 @@ def recommend_for(
                 prob_blue_win=float(row[wr_col]) if side == "blue" else 1.0 - float(row[wr_col]),
                 prob_red_win=float(row[wr_col]) if side == "red" else 1.0 - float(row[wr_col]),
                 score=float(row[wr_col]),
-                explanation=f"Sugerencia de apertura: Mayor Win Rate base en este Elo ({float(row[wr_col])*100:.1f}%)."
+                explanation=f"Mayor Win Rate base en este Elo ({float(row[wr_col])*100:.1f}%)."
             )
             for _, row in top_champs.iterrows()
         ]
+
     # =========================================================================
-
-    # Identificar el universo de campeones elegibles en el parche
+    # Evaluación de Candidatos en tiempo real
+    # =========================================================================
     candidate_ids = [cid for cid in RES.champs_df["champ_id"].astype(int) if cid not in used_ids]
-    
-    # Identificar el universo de campeones elegibles en el parche
-    candidate_ids = [cid for cid in RES.champs_df["champ_id"].astype(int) if cid not in used_ids]
+    results = []
 
-    # Identificar el universo de campeones elegibles en el parche
-    candidate_ids = [cid for cid in RES.champs_df["champ_id"].astype(int) if cid not in used_ids]
-
-    # Construcción de la Línea Base (Baseline del estado actual del Draft)
-    base_blue = blue_ids.copy()
-    base_red = red_ids.copy()
-    while len(base_blue) < 5: base_blue.append(-1)
-    while len(base_red) < 5: base_red.append(-1)
-
-    recs: List[Recommendation] = []
-    side_key = side.lower()
-
-    # 2. Bucle de Simulación Secuencial Turno a Turno
     for cid in candidate_ids:
-        if side_key == "blue":
-            sim_blue = blue_ids + [cid]
-            sim_red = red_ids
-            current_team_ids = blue_ids
+        # Clonamos el estado actual para simular el escenario con este campeón
+        sim_blue = list(blue_ids)
+        sim_red = list(red_ids)
+        
+        if side == "blue":
+            sim_blue.append(cid)
         else:
-            sim_blue = blue_ids
-            sim_red = red_ids + [cid]
-            current_team_ids = red_ids
-
-        # Rellenar con placeholders neutrales para cumplir las dimensiones estructurales
+            sim_red.append(cid)
+            
+        # Rellenamos con -1 para mantener la estructura simétrica de 13 columnas de features
         while len(sim_blue) < 5: sim_blue.append(-1)
         while len(sim_red) < 5: sim_red.append(-1)
-
+        
+        # Construimos las características
+        df_feats = build_features_for_draft(sim_blue, sim_red, tier=tier_key)
+        
+        # ✨ EL FIX: Delegar la predicción a la función blindada que ya creamos
         try:
-            # Construir variables adaptadas al clasificador asignado
-            df_feats = build_features_for_draft(sim_blue, sim_red, tier_key)
-            
-            # Obtener inferencia probabilística limpia del Pipeline
-            p_blue = predict_blue_win_prob(df_feats, tier_key)
+            p_blue = predict_blue_win_prob(df_feats, tier=tier_key)
             p_red = 1.0 - p_blue
+        except Exception:
+            # Fallback de seguridad por si falla el modelo en caliente
+            p_blue, p_red = 0.50, 0.50
 
-            # El score base del bando objetivo corresponde a su propia probabilidad de victoria
-            base_score = p_blue if side_key == "blue" else p_red
-            
-            # Aplicar la penalización de balance de roles en la composición grupal
-            pen = role_penalty(cid, current_team_ids)
-            final_score = base_score * pen
+        # Determinamos la probabilidad objetivo según el bando que consulta
+        target_prob = p_blue if side == "blue" else p_red
+        
+        # Calculamos la penalización por redundancia de roles (Flex System)
+        current_team_ids = blue_ids if side == "blue" else red_ids
+        penalty = role_penalty(cid, current_team_ids)
+        
+        # Score Táctico final ponderado
+        score_tactico = target_prob * penalty
+        
+        # Extraemos etiquetas de texto para las explicaciones contextuales
+        champ_name = id_to_name.get(cid, f"Champ {cid}")
+        row_meta = RES.champs_df[RES.champs_df["champ_id"] == cid]
+        
+        explanation = "Pick sólido para balancear la composición."
+        if not row_meta.empty and "tactic_tags" in row_meta.columns:
+            tags = row_meta["tactic_tags"].values[0]
+            if pd.notna(tags) and str(tags).strip():
+                explanation = str(tags)
 
-            recs.append(
-                Recommendation(
-                    champ_id=cid,
-                    champ_name=RES.id2name.get(cid, f"Desconocido_{cid}"),
-                    prob_blue_win=p_blue,
-                    prob_red_win=p_red,
-                    score=final_score,
-                    explanation=explain_candidate(cid, side_key)
-                )
+        results.append(
+            Recommendation(
+                champ_id=cid,
+                champ_name=champ_name,
+                prob_blue_win=p_blue,
+                prob_red_win=p_red,
+                score=score_tactico,
+                explanation=explanation
             )
-        except Exception as e:
-            continue
+        )
 
-    # 3. Ordenamiento jerárquico descendente basado en el Score Estratégico
-    recs_sorted = sorted(recs, key=lambda r: r.score, reverse=True)
-    return recs_sorted[:top_k]
+    # Ordenamos de mayor a menor según el Score Táctico resultante
+    results.sort(key=lambda x: x.score, reverse=True)
+    return results[:top_k]
 
 
 # ==========================================
