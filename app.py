@@ -372,17 +372,19 @@ def render_draft_interface(tier_key):
 # VISTA PRINCIPAL (TABS)
 # =====================================
 
-st.title("🎮 Draft Recommender")
-
+st.title("🎮WinRate Optimizer: LoL Draft Simulator")
 
 st.divider()
 
-tab_apex, tab_low = st.tabs(["🏆 Tier Apex (High Elo)", "🔰 Tier Low Elo"])
+# 💡 Opción con Corona y Escudo de Hierro (muy estilo LoL)
+tab_apex, tab_low = st.tabs(["👑 Tier Apex (High Elo)", "⚔️ Tier Low Elo"])
 
 with tab_apex:
-    st.markdown("**Pipeline de Inferencia: APEX** (Partidas de Master a Challenger).**)
+    # ✨ FIX: Comillas cerradas correctamente al final: .**")
+    st.markdown("**Pipeline de Inferencia: APEX** (Partidas de Master a Challenger).")
     render_draft_interface(tier_key="apex")
 
 with tab_low:
-    st.markdown("**Pipeline de Inferencia: LOW ELO** (Partidas de Iron hasta Bronze).**)
+    # ✨ FIX: Comillas cerradas correctamente al final: .**")
+    st.markdown("**Pipeline de Inferencia: LOW ELO** (Partidas de Iron hasta Bronze).")
     render_draft_interface(tier_key="lowtier")
