@@ -164,17 +164,17 @@ def role_penalty(cand_id: int, current_ids: List[int]) -> float:
 def build_features_for_draft(blue_ids, red_ids, tier="lowtier"):
     """
     Construye el vector de características para los modelos predictivos.
-    Dado que ambos modelos (Apex y Low Elo) usan las mismas 13 variables,
-    se unifica el retorno para evitar descuadres en Pandas.
+    Apex -> Requiere 13 columnas macros.
+    Low Elo -> El StandardScaler del Pipeline exige estrictamente 26 columnas.
     """
     tier_key = tier.lower()
     
-    # 1. Componente base (5 IDs Blue + 5 IDs Red = 10 columnas)
+    # 1. Componente base común (10 columnas: IDs de campeones)
     feat_data = []
     feat_data.extend(blue_ids)
     feat_data.extend(red_ids)
     
-    # 2. Cálculo de Win Rates del servidor según el Elo seleccionado
+    # 2. Win Rates macros (3 columnas: b_mean, r_mean, d_wr)
     wr_col = f"win_rate_{tier_key}" if f"win_rate_{tier_key}" in RES.champs_df.columns else "win_rate_role"
     wr_map = RES.champs_df.set_index("champ_id")[wr_col].to_dict()
     
@@ -185,16 +185,36 @@ def build_features_for_draft(blue_ids, red_ids, tier="lowtier"):
     r_mean = np.mean(r_wrs) if r_wrs else 0.50
     d_wr = b_mean - r_mean
     
-    # Añadimos las 3 métricas macro (+3 columnas = 13 en total)
-    feat_data.extend([b_mean, r_mean, d_wr])
+    feat_data.extend([b_mean, r_mean, d_wr]) # Aquí acumulamos 13 elementos
     
-    # 3. Definición estricta de los 13 nombres de columnas esenciales
-    # IMPORTANTE: Este orden debe ser idéntico al que usaste en tu Jupyter Notebook / script de entrenamiento
+    # Nombres base para las primeras 13 columnas
     feature_names = [f"b{i}" for i in range(1, 6)] + [f"r{i}" for i in range(1, 6)] + ["b_mean", "r_mean", "d_wr"]
     
-    # Retornamos el DataFrame limpio con las 13 columnas simétricas para AMBOS modelos
+    # =========================================================================
+    # 🔰 CASO LOW ELO: Expandir a 26 columnas para satisfacer al StandardScaler
+    # =========================================================================
+    if tier_key == "lowtier":
+        # Extraemos los deltas dimensionales de la Capa Gold (9 columnas)
+        blue_clean = [c for c in blue_ids if c != -1]
+        red_clean = [c for c in red_ids if c != -1]
+        
+        b_v = np.sum([RES.champ_vectors.get(c, np.zeros(9)) for c in blue_clean], axis=0) if blue_clean else np.zeros(9)
+        r_v = np.sum([RES.champ_vectors.get(c, np.zeros(9)) for c in red_clean], axis=0) if red_clean else np.zeros(9)
+        
+        deltas_9 = b_v - r_v
+        feat_data.extend(deltas_9) # 13 + 9 = 22 elementos
+        
+        # Añadimos los nombres de las columnas de la Capa Gold
+        for col_name in RES.gold_cols:
+            feature_names.append(f"delta_{col_name}")
+            
+        # 🛡️ RELLENO DE SEGURIDAD: Agregamos placeholders en 0.0 hasta completar las 26 exigidas
+        while len(feat_data) < 26:
+            feat_data.append(0.0)
+            feature_names.append(f"placeholder_{len(feat_data)}")
+            
+    # Retorna un DataFrame con 13 columnas para Apex o 26 exactas para Low Elo
     return pd.DataFrame([feat_data], columns=feature_names)
-
 
 # ==========================================
 # 🧠 Motores de Inferencia y Explicabilidad
