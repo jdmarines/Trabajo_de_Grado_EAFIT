@@ -380,9 +380,9 @@ st.divider()
 tab_apex, tab_low = st.tabs(["🏆 Tier Apex (High Elo)", "🔰 Tier Low Elo"])
 
 with tab_apex:
-    st.markdown("**Pipeline de Inferencia: APEX** (Partidas de Master a Challenger).)
+    st.markdown("**Pipeline de Inferencia: APEX** (Partidas de Master a Challenger).**)
     render_draft_interface(tier_key="apex")
 
 with tab_low:
-    st.markdown("**Pipeline de Inferencia: LOW ELO** (Partidas de Iron hasta Bronze).)
+    st.markdown("**Pipeline de Inferencia: LOW ELO** (Partidas de Iron hasta Bronze).**)
     render_draft_interface(tier_key="lowtier")
