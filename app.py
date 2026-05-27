@@ -53,6 +53,8 @@ def get_champ_image_url(champ_name):
         mapping = {
             "nunu&willump": "Nunu",
             "aurelionsol": "AurelionSol",
+            "kogmaw": "KogMaw",
+            "leblanc": "Leblanc",
             "xinzhao": "XinZhao",
             "masteryi": "MasterYi",
             "belveth": "Belveth",
