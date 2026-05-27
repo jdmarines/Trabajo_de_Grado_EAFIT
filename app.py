@@ -219,7 +219,7 @@ def render_draft_interface(tier_key):
     red_picks = []
 
     with col1:
-        st.subheader("🔵 Equipo BLUE")
+        st.subheader("🔵 Equipo Azul")
         for i in range(1, 6):
             img_col, select_col = st.columns([1, 5])
             current_key = f"b{i}_{tier_key}"
@@ -231,7 +231,7 @@ def render_draft_interface(tier_key):
                 img_col.image(img_url, width=54)
 
     with col2:
-        st.subheader("🔴 Equipo RED")
+        st.subheader("🔴 Equipo Rojo")
         for i in range(1, 6):
             img_col, select_col = st.columns([1, 5])
             current_key = f"r{i}_{tier_key}"
@@ -324,9 +324,9 @@ def render_draft_interface(tier_key):
             col_blue, col_red = st.columns(2)
 
             with col_blue:
-                st.subheader("🔵 Sugerencias para BLUE")
+                st.subheader("🔵 Sugerencias para el Equipo Azul")
                 if len(blue_sel) == 5:
-                    st.info("BLUE ya completó sus 5 picks.")
+                    st.info("el equipo Azul ya completó sus 5 picks.")
                 else:
                     try:
                         recs_blue = recommend_for(blue_sel, red_sel, side="blue", top_k=5, tier=tier_key, bans=ban_sel)
@@ -343,12 +343,12 @@ def render_draft_interface(tier_key):
                             )
                             st.markdown("---")
                     except Exception as e:
-                        st.error(f"Error en sugerencias de BLUE: {e}")
+                        st.error(f"Error en sugerencias del Equipo Azul: {e}")
 
             with col_red:
-                st.subheader("🔴 Sugerencias para RED")
+                st.subheader("🔴 Sugerencias para el Equipo Azul")
                 if len(red_sel) == 5:
-                    st.info("RED ya completó sus 5 picks.")
+                    st.info("El equipo Rojo ya completó sus 5 picks.")
                 else:
                     try:
                         recs_red = recommend_for(blue_sel, red_sel, side="red", top_k=5, tier=tier_key, bans=ban_sel)
@@ -365,14 +365,14 @@ def render_draft_interface(tier_key):
                             )
                             st.markdown("---")
                     except Exception as e:
-                        st.error(f"Error en sugerencias de RED: {e}")
+                        st.error(f"Error en sugerencias del Equipo Rojo: {e}")
 
 
 # =====================================
 # VISTA PRINCIPAL (TABS)
 # =====================================
 
-st.title("🎮 LoL Draft Recommender — Versión Profesional")
+st.title("🎮 Draft Recommender")
 st.markdown(
     """
     Simulador estratégico avanzado con análisis multidimensional de la Capa Gold y motores de inferencia predictiva segmentados.
