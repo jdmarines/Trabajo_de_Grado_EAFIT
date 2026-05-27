@@ -189,9 +189,44 @@ def build_features_for_draft(blue_ids, red_ids, tier="lowtier"):
 # 🧠 Motores de Inferencia y Explicabilidad
 # ==========================================
 
-def predict_blue_win_prob(df_features: pd.DataFrame, tier: str) -> float:
-    pipeline = RES.models[tier.lower()]['pipeline']
-    return float(pipeline.predict_proba(df_features)[0, 1])
+def predict_blue_win_prob(df_feats, tier="lowtier"):
+    """
+    Ejecuta la predicción de victoria según la librería del modelo:
+    Low Elo -> XGBoost (Maneja predicción directa o DMatrix)
+    Apex -> RandomForest (Scikit-Learn / predict_proba)
+    """
+    tier_key = tier.lower()
+    model_entry = RES.models[tier_key]
+    
+    # Extraemos el objeto del modelo de forma segura
+    if isinstance(model_entry, dict):
+        model = model_entry.get("model", model_entry)
+    else:
+        model = model_entry
+
+    # =========================================================================
+    # 🔰 CASO LOW ELO: XGBoost
+    # =========================================================================
+    if tier_key == "lowtier":
+        try:
+            # Intentar primero si se entrenó con la interfaz XGBClassifier de Scikit-Learn
+            preds_proba = model.predict_proba(df_feats)
+            return float(preds_proba[0][1])
+        except AttributeError:
+            # Fallback si se entrenó con la API nativa de XGBoost (xgb.train)
+            import xgboost as xgb
+            # Aseguramos que el orden de las columnas sea el correcto para el árbol
+            dmat = xgb.DMatrix(df_feats)
+            preds = model.predict(dmat)
+            return float(preds[0])
+
+    # =========================================================================
+    # 🏆 CASO APEX: RandomForest (Scikit-Learn)
+    # =========================================================================
+    else:
+        # Los modelos de sklearn devuelven [prob_derrota, prob_victoria]
+        preds_proba = model.predict_proba(df_feats)
+        return float(preds_proba[0][1])
 
 
 def explain_candidate(champ_id: int, side: str) -> str:
