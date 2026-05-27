@@ -193,7 +193,7 @@ def render_draft_interface(tier_key):
     with st.expander("🚫 Fase de Bloqueos (Bans)", expanded=False):
         b_col, r_col = st.columns(2)
         with b_col:
-            st.markdown(":blue[**Bans Equipo BLUE**]")
+            st.markdown(":blue[**Bans Equipo Azul**]")
             bb_cols = st.columns(5)
             bb1 = bb_cols[0].selectbox("B1", get_available_options(f"bb1_{tier_key}"), key=f"bb1_{tier_key}", label_visibility="collapsed")
             bb2 = bb_cols[1].selectbox("B2", get_available_options(f"bb2_{tier_key}"), key=f"bb2_{tier_key}", label_visibility="collapsed")
@@ -201,7 +201,7 @@ def render_draft_interface(tier_key):
             bb4 = bb_cols[3].selectbox("B4", get_available_options(f"bb4_{tier_key}"), key=f"bb4_{tier_key}", label_visibility="collapsed")
             bb5 = bb_cols[4].selectbox("B5", get_available_options(f"bb5_{tier_key}"), key=f"bb5_{tier_key}", label_visibility="collapsed")
         with r_col:
-            st.markdown(":red[**Bans Equipo RED**]")
+            st.markdown(":red[**Bans Equipo Rojo**]")
             rb_cols = st.columns(5)
             rb1 = rb_cols[0].selectbox("R1", get_available_options(f"rb1_{tier_key}"), key=f"rb1_{tier_key}", label_visibility="collapsed")
             rb2 = rb_cols[1].selectbox("R2", get_available_options(f"rb2_{tier_key}"), key=f"rb2_{tier_key}", label_visibility="collapsed")
@@ -277,8 +277,8 @@ def render_draft_interface(tier_key):
 
                 st.markdown("## 📊 Resultado global del draft")
                 c1, c2 = st.columns(2)
-                with c1: st.metric("Probabilidad de victoria BLUE", f"{p_blue*100:.1f}%")
-                with c2: st.metric("Probabilidad de victoria RED", f"{p_red*100:.1f}%")
+                with c1: st.metric("Probabilidad de victoria del Equipo azul", f"{p_blue*100:.1f}%")
+                with c2: st.metric("Probabilidad de victoria del Equipo Rojo", f"{p_red*100:.1f}%")
                 st.progress(p_blue)
 
                 # Panel Táctico Combinado (Gráfico + Métricas)
