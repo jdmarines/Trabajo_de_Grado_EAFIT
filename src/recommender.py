@@ -50,12 +50,17 @@ class Recommendation:
 
 class Resources:
     def __init__(self):
-        # 1. Carga Dinámica de Modelos por Elos
+        # 1. Carga Dinámica de Modelos por Elos (PARCHEADO CONTRA KEYERRORS)
         self.models: Dict[str, Dict[str, Any]] = {}
         for tier, path in MODEL_PATHS.items():
             if path.exists():
                 self.models[tier] = joblib.load(path)
-                print(f"✅ Cargado Backend de Inferencia para TIER: {tier.upper()} ({self.models[tier]['model_type']} - Etapa {self.models[tier]['stage']})")
+                
+                # 🛡️ Usamos .get() seguro por si el archivo .joblib de Low Elo viene sin estas llaves
+                m_type = self.models[tier].get('model_type', 'xgb' if 'low' in tier else 'rf')
+                m_stage = self.models[tier].get('stage', 1)
+                
+                print(f"✅ Cargado Backend de Inferencia para TIER: {tier.upper()} ({m_type} - Etapa {m_stage})")
             else:
                 print(f"⚠️ Alerta: No se encontró el archivo del modelo para {tier} en '{path}'")
 
