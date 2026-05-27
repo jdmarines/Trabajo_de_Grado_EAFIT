@@ -304,25 +304,34 @@ def recommend_for(
     # Mapeo rápido de IDs a Nombres para las explicaciones
     id_to_name = RES.champs_df.set_index("champ_id")["name"].to_dict()
 
-    # =========================================================================
-    # Estado Inicial Vacío (Top 5 Win Rate base del Tier)
+# =========================================================================
+    # Estado Inicial Vacío (Top 5 Win Rate base del Tier) - CORREGIDO
     # =========================================================================
     if len(blue_ids) == 0 and len(red_ids) == 0:
         wr_col = f"win_rate_{tier_key}" if f"win_rate_{tier_key}" in RES.champs_df.columns else "win_rate_role"
         available_champs = RES.champs_df[~RES.champs_df["champ_id"].isin(used_ids)]
         top_champs = available_champs.sort_values(by=wr_col, ascending=False).head(top_k)
         
-        return [
-            Recommendation(
-                champ_id=int(row["champ_id"]),
-                champ_name=row["name"],
-                prob_blue_win=float(row[wr_col]) if side == "blue" else 1.0 - float(row[wr_col]),
-                prob_red_win=float(row[wr_col]) if side == "red" else 1.0 - float(row[wr_col]),
-                score=float(row[wr_col]),
-                explanation=f"Mayor Win Rate base en este Elo ({float(row[wr_col])*100:.1f}%)."
+        recs = []
+        for _, row in top_champs.iterrows():
+            # 🛡️ Si el win rate viene como 55.61, lo normalizamos a 0.5561
+            raw_wr = float(row[wr_col])
+            base_prob = raw_wr / 100.0 if raw_wr > 1.0 else raw_wr
+            
+            p_blue = base_prob if side == "blue" else 1.0 - base_prob
+            p_red = base_prob if side == "red" else 1.0 - base_prob
+            
+            recs.append(
+                Recommendation(
+                    champ_id=int(row["champ_id"]),
+                    champ_name=row["name"],
+                    prob_blue_win=p_blue,
+                    prob_red_win=p_red,
+                    score=base_prob, # El score táctico ahora será 0.556 en vez de 55.6
+                    explanation=f"Mayor Win Rate base en este Elo ({raw_wr if raw_wr > 1.0 else raw_wr*100:.1f}%)."
+                )
             )
-            for _, row in top_champs.iterrows()
-        ]
+        return recs
 
     # =========================================================================
     # Evaluación de Candidatos en tiempo real
