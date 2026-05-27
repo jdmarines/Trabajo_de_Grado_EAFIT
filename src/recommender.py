@@ -191,43 +191,46 @@ def build_features_for_draft(blue_ids, red_ids, tier="lowtier"):
 
 def predict_blue_win_prob(df_feats, tier="lowtier"):
     """
-    Ejecuta la predicción de victoria según la librería del modelo:
-    Low Elo -> XGBoost (Maneja predicción directa o DMatrix)
-    Apex -> RandomForest (Scikit-Learn / predict_proba)
+    Ejecuta la predicción de victoria detectando dinámicamente la librería 
+    del modelo (XGBoost vs Scikit-Learn) sin depender de llaves de texto.
     """
     tier_key = tier.lower()
-    model_entry = RES.models[tier_key]
+    model_entry = RES.models.get(tier_key)
     
-    # Extraemos el objeto del modelo de forma segura
+    if not model_entry:
+        return 0.50 # Fallback neutral si el modelo no existe
+
+    # Extraemos el objeto de machine learning real de forma segura
     if isinstance(model_entry, dict):
         model = model_entry.get("model", model_entry)
     else:
         model = model_entry
 
+    # 🧠 DETECCIÓN DINÁMICA: Analizamos el nombre de la clase real del objeto
+    class_name = type(model).__name__.lower()
+    is_xgb = "xgb" in class_name or "booster" in class_name
+
     # =========================================================================
-    # 🔰 CASO LOW ELO: XGBoost
+    # 🔰 SI EL MODELO ES XGBOOST (Low Elo)
     # =========================================================================
-    if tier_key == "lowtier":
+    if is_xgb:
         try:
-            # Intentar primero si se entrenó con la interfaz XGBClassifier de Scikit-Learn
+            # Si se guardó usando la API compatible con Sklearn (XGBClassifier)
             preds_proba = model.predict_proba(df_feats)
             return float(preds_proba[0][1])
         except AttributeError:
-            # Fallback si se entrenó con la API nativa de XGBoost (xgb.train)
+            # Si se guardó usando la API nativa de XGBoost (xgb.train)
             import xgboost as xgb
-            # Aseguramos que el orden de las columnas sea el correcto para el árbol
             dmat = xgb.DMatrix(df_feats)
             preds = model.predict(dmat)
             return float(preds[0])
 
     # =========================================================================
-    # 🏆 CASO APEX: RandomForest (Scikit-Learn)
+    # 🏆 SI EL MODELO ES RANDOM FOREST / SKLEARN (Apex)
     # =========================================================================
     else:
-        # Los modelos de sklearn devuelven [prob_derrota, prob_victoria]
         preds_proba = model.predict_proba(df_feats)
         return float(preds_proba[0][1])
-
 
 def explain_candidate(champ_id: int, side: str) -> str:
     """Genera explicaciones cualitativas diagnósticas basadas en el perfil Gold del personaje."""
