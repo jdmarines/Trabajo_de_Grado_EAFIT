@@ -1,27 +1,25 @@
-# [cite_start]Sistema de Recomendación Secuencial en Entornos de Baja Separabilidad Estadística: Aplicación al Draft de League of Legends [cite: 1]
+# Sistema de Recomendación Secuencial en Entornos de Baja Separabilidad Estadística: Aplicación al Draft de League of Legends
 
-[cite_start]Este repositorio contiene el código fuente, los Notebooks experimentales, los artefactos de modelado y la interfaz de producción desarrollados como Trabajo de Grado para la **Maestría en Ciencias de los Datos y la Analítica** de la **Universidad EAFIT** (2026)[cite: 3, 8, 10].
+Este repositorio contiene el código fuente, los Notebooks experimentales, los artefactos de modelado y la interfaz de producción desarrollados como Trabajo de Grado para la **Maestría en Ciencias de los Datos y la Analítica** de la **Universidad EAFIT** (2026)
 
-* [cite_start]**Autor:** Juan David Marín Escobar [cite: 2]
-* [cite_start]**Asesor:** Juan David Martínez Vargas [cite: 5]
-* [cite_start]**Institución:** Universidad EAFIT — Escuela de Ciencias Aplicadas e Ingeniería [cite: 6, 7]
-* [cite_start]**Ubicación y Año:** Medellín, 2026 [cite: 9, 10]
+* **Autor:** Juan David Marín Escobar 
+* **Asesor:** Juan David Martínez Vargas 
+* **Institución:** Universidad EAFIT — Escuela de Ciencias Aplicadas e Ingeniería 
+* **Ubicación y Año:** Medellín, 2026 
 
 ---
 
 ## 📝 Resumen Ejecutivo del Proyecto
 
-[cite_start]Esta investigación aborda el complejo problema de la toma de decisiones secuenciales en escenarios tabulares discretos caracterizados por una relación señal-ruido extremadamente baja[cite: 55, 65]. [cite_start]Tomando como caso de estudio la fase de selección de personajes (*draft*) en el videojuego *League of Legends*, el proyecto desafía la expectativa convencional de construir clasificadores con métricas de exactitud elevadas, demostrando en su lugar que es científicamente viable extraer señales estratégicas marginales y ventajas probabilísticas útiles dentro de un dominio deliberadamente balanceado y regularizado de forma externa[cite: 55, 66, 69, 115].
+Esta investigación aborda el complejo problema de la toma de decisiones secuenciales en escenarios tabulares discretos caracterizados por una relación señal-ruido extremadamente baja. Tomando como caso de estudio la fase de selección de personajes (*draft*) en el videojuego *League of Legends*, el proyecto desafía la expectativa convencional de construir clasificadores con métricas de exactitud elevadas, demostrando en su lugar que es científicamente viable extraer señales estratégicas marginales y ventajas probabilísticas útiles dentro de un dominio deliberadamente balanceado y regularizado de forma externa.
 
-[cite_start]El entorno experimental está condicionado por el *Champion Balance Framework* de Riot Games, un mecanismo algorítmico de optimización continua que interviene quincenalmente la plantilla de personajes para forzar de manera artificial que sus tasas de éxito basales converjan simétricamente alrededor del equilibrio del $50\%$[cite: 56, 67, 118, 122]. [cite_start]Esta contención de la varianza estructural genera un escenario de bajísima separabilidad estadística[cite: 56, 68, 121].
+El entorno experimental está condicionado por el *Champion Balance Framework* de Riot Games, un mecanismo algorítmico de optimización continua que interviene quincenalmente la plantilla de personajes para forzar de manera artificial que sus tasas de éxito basales converjan simétricamente alrededor del equilibrio del 50%. Esta contención de la varianza estructural genera un escenario de bajísima separabilidad estadística
 
-[cite_start]Para mitigar esta restricción, se diseñó e implementó un pipeline de ingeniería de características denominado **Capa Gold**, el cual ejecuta una reducción semántica de la dimensionalidad[cite: 57]. [cite_start]Al proyectar identidades categóricas dispersas hacia métricas macroestructurales continuas y ratios relacionales basados en los principios no cooperativos de la Teoría de Juegos, el sistema logra extraer señal estadística explotable[cite: 57, 58, 149]. [cite_start]Los resultados del torneo de modelos evidencian una marcada asimetría analítica según el nivel de destreza (*skill tier*) de los jugadores, consolidando un óptimo global de $AUC = 0.566589$ mediante un ensamble XGBoost en escenarios de alta entropía operativa humana[cite: 59, 60, 258].
+Para mitigar esta restricción, se diseñó e implementó un pipeline de ingeniería de características denominado **Capa Gold**, el cual ejecuta una reducción semántica de la dimensionalidad. Al proyectar identidades categóricas dispersas hacia métricas macroestructurales continuas y ratios relacionales basados en los principios no cooperativos de la Teoría de Juegos, el sistema logra extraer señal estadística explotable. Los resultados del torneo de modelos evidencian una marcada asimetría analítica según el nivel de destreza (*skill tier*) de los jugadores, consolidando un óptimo global de $AUC = 0.566589$ mediante un ensamble XGBoost en escenarios de alta entropía operativa humana.
 
 ---
 
-## 📂 Arquitectura Real del Repositorio
-
-[cite_start]La gobernanza del código y de los artefactos de datos sigue el marco metodológico **CRISP-DM**, estructurándose fielmente según la distribución actual de archivos del proyecto[cite: 58, 155, 371]:
+## 📂 Arquitectura  del Repositorio
 
 ```text
 Trabajo_de_Grado_EAFIT/
