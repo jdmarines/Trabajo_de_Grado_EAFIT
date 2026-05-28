@@ -19,6 +19,9 @@ Para mitigar esta restricción, se diseñó e implementó un pipeline de ingenie
 
 ---
 
+## Link del sistema de recomendacion en stramlit : https://loldraft.streamlit.app
+
+---
 ## 📂 Arquitectura  del Repositorio
 
 ```text
@@ -51,4 +54,3 @@ Trabajo_de_Grado_EAFIT/
 ├── app.py                              # Interfaz web interactiva de producción en Streamlit 
 └── requirements.txt                    # Manifiesto de dependencias y librerías del proyecto
 
-Link del sistema de recomendacion en stramlit : https://loldraft.streamlit.app
